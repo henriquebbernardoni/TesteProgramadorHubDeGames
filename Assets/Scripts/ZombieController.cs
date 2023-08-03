@@ -9,7 +9,7 @@ public class ZombieController : MonoBehaviour
     public Transform[] wanderPoints;
     private int currentPoint;
 
-    enum ZombieState { WANDER, ATTACK, DEATH }
+    enum ZombieState { WANDER, ATTACK, DEATH, NONE }
     private ZombieState state;
 
     private void Awake()
@@ -30,11 +30,14 @@ public class ZombieController : MonoBehaviour
         switch (newState)
         {
             case ZombieState.WANDER:
+                agent.speed = 2f;
                 StartCoroutine(WanderRoutine());
                 break;
             case ZombieState.ATTACK:
                 break;
             case ZombieState.DEATH:
+                break;
+            case ZombieState.NONE:
                 break;
         }
     }
