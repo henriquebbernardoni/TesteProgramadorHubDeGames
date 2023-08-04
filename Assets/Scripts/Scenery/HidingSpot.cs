@@ -13,11 +13,9 @@ public class HidingSpot : MonoBehaviour
     public virtual IEnumerator EnterHidingSpot(SurvivorController survivorController)
     {
         survivorController.SetSurvivorDestination(standingPoint.position);
+        yield return new WaitUntil(() => survivorController.Agent.hasPath);
         yield return new WaitWhile(() => survivorController.Agent.hasPath);
-        while (survivorController.Agent.hasPath)
-        {
-            yield return new WaitForEndOfFrame();
-        }
+        yield return new WaitForEndOfFrame();
         survivorController.SetState(SurvivorController.SurvivorStates.HIDE);
     }
 }
