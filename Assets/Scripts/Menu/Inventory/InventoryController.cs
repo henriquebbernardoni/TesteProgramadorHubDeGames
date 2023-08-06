@@ -45,7 +45,7 @@ public class InventoryController : MonoBehaviour
             Item firstItem = null;
             for (int i = 0; i < inventoryItems.Count; i++)
             {
-                if (inventoryItems[i].GetType() ==  item.GetType())
+                if (inventoryItems[i].GetType() == item.GetType())
                 {
                     firstItem = inventoryItems[i];
                     break;
@@ -125,7 +125,10 @@ public class InventoryController : MonoBehaviour
         }
 
         inventoryPanel.SetActive(!inventoryPanel.activeInHierarchy);
-        UpdateInventoryPanel();
+        if (inventoryPanel.activeInHierarchy)
+        {
+            UpdateInventoryPanel();
+        }
     }
 
     private void UpdateInventoryPanel()

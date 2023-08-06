@@ -40,6 +40,7 @@ public abstract class Weapon : Item
         {
             attacker.SetWeapon(null);
             inventoryController.WeaponSelectButton.UpdateAppearence(null);
+            WarningText.Instance.SetWarningText(ObjectName + " quebrou!");
         }
     }
 }

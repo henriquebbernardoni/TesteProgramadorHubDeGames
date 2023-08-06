@@ -19,12 +19,18 @@ public class PieceOfWood : Weapon
         if (Vector3.Dot(forward, direction) < 0)
         {
             defender.ModifyHealth(-2);
+            WarningText.Instance.SetWarningText("Ataque acertou!");
         }
         else
         {
             if (Random.value < 0.5f)
             {
                 defender.ModifyHealth(-1);
+                WarningText.Instance.SetWarningText("Ataque acertou!");
+            }
+            else
+            {
+                WarningText.Instance.SetWarningText("Ataque acertou!");
             }
         }
 

@@ -4,65 +4,36 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class ZombieController : MonoBehaviour
+//Código de controle dos Zumbis, controlando as diferentes rotinas
+public class ZombieController : GenCharacterController
 {
-    private NavMeshAgent agent;
-    public Transform[] wanderPoints;
+    private List<Transform> wanderPoints;
     private int currentPoint;
 
     public enum ZombieState { WANDER, ATTACK, DEATH, NULL }
     private ZombieState state;
 
-    private Quaternion previousRotation;
-    private int health = 2;
-    private TextMeshPro healthText;
-    private Transform _camera;
-
-    private void Awake()
+    protected override void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        healthText = GetComponentInChildren<TextMeshPro>();
-        _camera = Camera.main.transform;
-    }
-
-    private void Start()
-    {
+        base.Start();
+        FindWanderPoints();
         SetState(ZombieState.NULL);
-        UpdateHealthText();
-    }
-
-    private void LateUpdate()
-    {
-        PointTextToCamera();
-    }
-
-    private void PointTextToCamera()
-    {
-        if (previousRotation != transform.rotation)
-        {
-            previousRotation =
-                Quaternion.LookRotation(-(_camera.transform.position - healthText.transform.position));
-            healthText.transform.rotation = previousRotation;
-        }
-    }
-
-    private void UpdateHealthText()
-    {
-        healthText.text = health.ToString();
     }
 
     public void SetState(ZombieState newState)
     {
         StopAllCoroutines();
+        FullStop();
         state = newState;
 
         switch (newState)
         {
             case ZombieState.WANDER:
-                agent.speed = 2f;
+                Agent.speed = 2f;
                 StartCoroutine(WanderRoutine());
                 break;
             case ZombieState.ATTACK:
+                Agent.speed = 5.5f;
                 break;
             case ZombieState.DEATH:
                 break;
@@ -81,12 +52,21 @@ public class ZombieController : MonoBehaviour
     {
         while (true)
         {
-            agent.SetDestination(ChooseNewWanderPoint());
+            Agent.SetDestination(ChooseNewWanderPoint());
             yield return new WaitForEndOfFrame();
-            while (agent.hasPath)
+            while (Agent.hasPath)
             {
                 yield return new WaitForEndOfFrame();
             }
+        }
+    }
+
+    private void FindWanderPoints()
+    {
+        Transform wanderPointsParent = GameObject.Find("ZombieWanderPoints").transform;
+        for (int i = 0; i < wanderPointsParent.childCount; i++)
+        {
+            wanderPoints.Add(wanderPointsParent.GetChild(i));
         }
     }
 
@@ -99,26 +79,14 @@ public class ZombieController : MonoBehaviour
         value = currentPoint;
         while (value == currentPoint)
         {
-            value = Random.Range(0, wanderPoints.Length);
+            value = Random.Range(0, wanderPoints.Count);
         }
         vector3 = wanderPoints[value].position;
         return vector3;
     }
 
-    public void ModifyHealth(int amount)
+    protected override void DeathBehaviour()
     {
-        health += amount;
-
-        if (health < 0)
-        {
-            health = 0;
-        }
-
-        UpdateHealthText();
-
-        if (health == 0)
-        {
-            SetState(ZombieState.DEATH);
-        }
+        SetState(ZombieState.DEATH);
     }
 }

@@ -10,6 +10,7 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private SurvivorController playerCharacter;
     [SerializeField] private InventoryController inventoryController;
+    [SerializeField] private TextMeshProUGUI actionDescription;
 
     public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
 
@@ -20,9 +21,35 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        DescribeAction();
         if (Input.GetMouseButtonDown(1))
         {
             RightButtonClick();
+        }
+    }
+
+    private void DescribeAction()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            if (hit.collider.CompareTag("Floor"))
+            {
+                actionDescription.text = "Ir Aqui";
+            }
+            else if (hit.collider.GetComponent<HidingSpot>())
+            {
+                actionDescription.text = "Esconder-se";
+            }
+            else if (hit.collider.GetComponent<Item>())
+            {
+                actionDescription.text = "Pegar " + hit.collider.GetComponent<Item>().ObjectName;
+            }
+            else if (hit.collider.GetComponent<ZombieController>())
+            {
+                actionDescription.text = "Atacar!";
+            }
         }
     }
 
@@ -51,16 +78,25 @@ public class PlayerController : MonoBehaviour
             }
             else if (hit.collider.GetComponent<ZombieController>())
             {
-                if (!playerCharacter.GetWeapon() || playerCharacter.IsRecharging
-                    /*|| hit.collider.GetComponent<ZombieController>().GetState() == ZombieController.ZombieState.DEATH*/)
+                if (!playerCharacter.GetWeapon())
                 {
-                    return;
+                    WarningText.Instance.SetWarningText("Nenhuma arma selecionada!");
                 }
-
-                StopAllCoroutines();
-                playerCharacter.FullStop();
-                StartCoroutine(playerCharacter.GetWeapon().
-                    WeaponBehaviour(playerCharacter, hit.collider.GetComponent<ZombieController>()));
+                else if (playerCharacter.IsRecharging)
+                {
+                    WarningText.Instance.SetWarningText("Recarregando!");
+                }
+                else if (hit.collider.GetComponent<ZombieController>().GetState() == ZombieController.ZombieState.DEATH)
+                {
+                    WarningText.Instance.SetWarningText("Inimigo já morto!");
+                }
+                else
+                {
+                    StopAllCoroutines();
+                    playerCharacter.FullStop();
+                    StartCoroutine(playerCharacter.GetWeapon().
+                        WeaponBehaviour(playerCharacter, hit.collider.GetComponent<ZombieController>()));
+                }
             }
         }
     }
@@ -92,5 +128,15 @@ public class PlayerController : MonoBehaviour
         inventoryController.AddItemToInventory(item);
         item.GetComponent<MeshRenderer>().enabled = false;
         item.GetComponent<Collider>().enabled = false;
+    }
+
+    public void SetAsPlayerCharacter(SurvivorController newPlayer)
+    {
+        if (playerCharacter)
+        {
+            PlayerCharacter.SetAsPlayerCharacter(false);
+        }
+        newPlayer.SetAsPlayerCharacter(true);
+        PlayerCharacter = newPlayer;
     }
 }

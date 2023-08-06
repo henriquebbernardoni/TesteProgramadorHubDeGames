@@ -3,15 +3,18 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using static ZombieController;
 
 //Script controlador geral dos Sobrevivente (PJ ou não)
 //Caso sejam PJ eles terão acesso a funções mais avançadas
-public class SurvivorController : MonoBehaviour
+public class SurvivorController : GenCharacterController
 {
-    public NavMeshAgent Agent { get; private set; }
-
-    public enum SurvivorState { WANDER, HIDE, DEATH }
+    public enum SurvivorState { WANDER, HIDE, FOLLOW, DEATH }
     private SurvivorState currentState;
+
+    private bool isPlayerCharacter = false;
+    [SerializeField] private Material survivorMaterial;
+    [SerializeField] private Material playerMaterial;
 
     //Essa foi uma maneira que eu encontrei de mostrar que um Sobrevivente está escondido
     //Caso esse fosse um projeto mais avançado, eu implementaria uma solução melhor
@@ -23,44 +26,7 @@ public class SurvivorController : MonoBehaviour
     private float rechargeTime = 3f;
     private bool isRecharging = false;
 
-    private Quaternion previousRotation;
-    private int health = 3;
-    private TextMeshPro healthText;
-    private Transform _camera;
-
     public bool IsRecharging { get => isRecharging; private set => isRecharging = value; }
-
-
-    private void Awake()
-    {
-        Agent = GetComponent<NavMeshAgent>();
-        healthText = GetComponentInChildren<TextMeshPro>();
-        _camera = Camera.main.transform;
-    }
-
-    private void Start()
-    {
-        UpdateHealthText();
-    }
-
-    private void LateUpdate()
-    {
-        PointTextToCamera();
-    }
-
-    private void PointTextToCamera()
-    {
-        if (previousRotation != transform.rotation)
-        {
-            previousRotation = Camera.main.transform.rotation;
-            healthText.transform.rotation = previousRotation;
-        }
-    }
-
-    private void UpdateHealthText()
-    {
-        healthText.text = health.ToString();
-    }
 
     //Esse código DEVE ser usado para se alterar o estado atual do Sobrevivente.
     public void SetState(SurvivorState state)
@@ -82,12 +48,6 @@ public class SurvivorController : MonoBehaviour
         return currentState;
     }
 
-    public void FullStop()
-    {
-        Agent.ResetPath();
-        Agent.velocity = Vector3.zero;
-    }
-
     //Essa função é usada quando um Sobrevivente está se mexendo,
     //garantindo que ele sempre entre no modo Wander quando se movimenta.
     public void SetSurvivorDestination(Vector3 destination)
@@ -97,6 +57,7 @@ public class SurvivorController : MonoBehaviour
             SetState(SurvivorController.SurvivorState.WANDER);
         }
         Agent.SetDestination(destination);
+
     }
 
     //Essa função detecta algum ponto de esconderijo próximo ao Sobrevivente.
@@ -141,20 +102,22 @@ public class SurvivorController : MonoBehaviour
         isRecharging = false;
     }
 
-    public void ModifyHealth(int amount)
+    protected override void DeathBehaviour()
     {
-        health += amount;
+        SetState(SurvivorState.DEATH);
+    }
 
-        if (health < 0)
+    public void SetAsPlayerCharacter(bool isPlayer)
+    {
+        isPlayerCharacter = isPlayer;
+
+        if (isPlayer)
         {
-            health = 0;
+            GetComponentInChildren<Renderer>().material = playerMaterial;
         }
-
-        UpdateHealthText();
-
-        if (health == 0)
+        else
         {
-            SetState(SurvivorState.DEATH);
+            GetComponentInChildren<Renderer>().material = survivorMaterial;
         }
     }
 }
