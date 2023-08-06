@@ -124,3 +124,4 @@ MonoBehaviour:
   objectDescription: "Bastante \xFAtil pra atacar um Zumbi se voc\xEA chegar perto
     de um."
   isStackable: 0
+  durability: 2

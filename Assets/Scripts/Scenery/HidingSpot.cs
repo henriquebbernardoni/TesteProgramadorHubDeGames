@@ -16,6 +16,6 @@ public class HidingSpot : MonoBehaviour
         yield return new WaitUntil(() => survivorController.Agent.hasPath);
         yield return new WaitWhile(() => survivorController.Agent.hasPath);
         yield return new WaitForEndOfFrame();
-        survivorController.SetState(SurvivorController.SurvivorStates.HIDE);
+        survivorController.SetState(SurvivorController.SurvivorState.HIDE);
     }
 }

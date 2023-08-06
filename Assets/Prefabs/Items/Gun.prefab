@@ -122,3 +122,4 @@ MonoBehaviour:
   objectDescription: "Te d\xE1 a chance de atacar de longe, com o risco de chamar
     todos os zumbis."
   isStackable: 0
+  durability: 5

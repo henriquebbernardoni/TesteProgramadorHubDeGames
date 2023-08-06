@@ -27,7 +27,6 @@ public abstract class Item : MonoBehaviour
     public virtual void InventoryInteraction()
     {
         Debug.Log(objectName);
-        inventoryController.RemoveItemFromInventory(this);
     }
 
     public void AddQuantity()

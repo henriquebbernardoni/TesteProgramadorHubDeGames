@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -9,20 +10,48 @@ public class ZombieController : MonoBehaviour
     public Transform[] wanderPoints;
     private int currentPoint;
 
-    enum ZombieState { WANDER, ATTACK, DEATH, NONE }
+    public enum ZombieState { WANDER, ATTACK, DEATH, NULL }
     private ZombieState state;
+
+    private Quaternion previousRotation;
+    private int health = 2;
+    private TextMeshPro healthText;
+    private Transform _camera;
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        healthText = GetComponentInChildren<TextMeshPro>();
+        _camera = Camera.main.transform;
     }
 
     private void Start()
     {
-        SetZombieState(ZombieState.WANDER);
+        SetState(ZombieState.NULL);
+        UpdateHealthText();
     }
 
-    private void SetZombieState(ZombieState newState)
+    private void LateUpdate()
+    {
+        PointTextToCamera();
+    }
+
+    private void PointTextToCamera()
+    {
+        if (previousRotation != transform.rotation)
+        {
+            previousRotation =
+                Quaternion.LookRotation(-(_camera.transform.position - healthText.transform.position));
+            healthText.transform.rotation = previousRotation;
+        }
+    }
+
+    private void UpdateHealthText()
+    {
+        healthText.text = health.ToString();
+    }
+
+    public void SetState(ZombieState newState)
     {
         StopAllCoroutines();
         state = newState;
@@ -37,9 +66,13 @@ public class ZombieController : MonoBehaviour
                 break;
             case ZombieState.DEATH:
                 break;
-            case ZombieState.NONE:
+            case ZombieState.NULL:
                 break;
         }
+    }
+    public ZombieState GetState()
+    {
+        return state;
     }
 
     //No modo Wander, o Zumbi caminhará aleoriamente entre diferentes pontos do mapa
@@ -70,5 +103,22 @@ public class ZombieController : MonoBehaviour
         }
         vector3 = wanderPoints[value].position;
         return vector3;
+    }
+
+    public void ModifyHealth(int amount)
+    {
+        health += amount;
+
+        if (health < 0)
+        {
+            health = 0;
+        }
+
+        UpdateHealthText();
+
+        if (health == 0)
+        {
+            SetState(ZombieState.DEATH);
+        }
     }
 }

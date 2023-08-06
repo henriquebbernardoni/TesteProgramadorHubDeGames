@@ -10,14 +10,18 @@ public class InventoryController : MonoBehaviour
     private List<Item> inventoryItems;
 
     [SerializeField] private InventoryPanelButton[] inventoryButtons;
+    [SerializeField] private InventoryPanelButton weaponSelectButton;
     [SerializeField] private GameObject inventoryPanel;
 
-    private PlayerController playerController;
+    private SurvivorController playerController;
+
+    public InventoryPanelButton WeaponSelectButton { get => weaponSelectButton; private set => weaponSelectButton = value; }
+    public SurvivorController PlayerController { get => playerController; private set => playerController = value; }
 
     private void Awake()
     {
         inventoryItems = new List<Item>();
-        playerController = GetComponent<PlayerController>();
+        PlayerController = GetComponent<PlayerController>().PlayerCharacter;
     }
 
     private void Start()
@@ -60,6 +64,11 @@ public class InventoryController : MonoBehaviour
         else
         {
             inventoryItems.Add(item);
+        }
+
+        if (inventoryPanel.activeInHierarchy)
+        {
+            UpdateInventoryPanel();
         }
     }
 
@@ -131,6 +140,15 @@ public class InventoryController : MonoBehaviour
             {
                 inventoryButtons[i].UpdateAppearence(inventoryItems[i]);
             }
+        }
+
+        if (PlayerController.GetWeapon())
+        {
+            weaponSelectButton.UpdateAppearence(PlayerController.GetWeapon());
+        }
+        else
+        {
+            weaponSelectButton.UpdateAppearence(null);
         }
     }
 }

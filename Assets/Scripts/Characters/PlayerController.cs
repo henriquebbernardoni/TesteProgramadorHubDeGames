@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.AI.Navigation;
+using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -10,6 +10,8 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private SurvivorController playerCharacter;
     [SerializeField] private InventoryController inventoryController;
+
+    public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
 
     private void Awake()
     {
@@ -38,12 +40,27 @@ public class PlayerController : MonoBehaviour
             else if (hit.collider.GetComponent<HidingSpot>())
             {
                 StopAllCoroutines();
+                playerCharacter.FullStop();
                 StartCoroutine(hit.collider.GetComponent<HidingSpot>().EnterHidingSpot(playerCharacter));
             }
             else if (hit.collider.GetComponent<Item>())
             {
                 StopAllCoroutines();
-                StartCoroutine(GetItem(hit.collider.gameObject));
+                playerCharacter.FullStop();
+                StartCoroutine(GetItem(hit.collider.GetComponent<Item>()));
+            }
+            else if (hit.collider.GetComponent<ZombieController>())
+            {
+                if (!playerCharacter.GetWeapon() || playerCharacter.IsRecharging
+                    /*|| hit.collider.GetComponent<ZombieController>().GetState() == ZombieController.ZombieState.DEATH*/)
+                {
+                    return;
+                }
+
+                StopAllCoroutines();
+                playerCharacter.FullStop();
+                StartCoroutine(playerCharacter.GetWeapon().
+                    WeaponBehaviour(playerCharacter, hit.collider.GetComponent<ZombieController>()));
             }
         }
     }
@@ -64,15 +81,16 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private IEnumerator GetItem(GameObject item)
+    private IEnumerator GetItem(Item item)
     {
         playerCharacter.SetSurvivorDestination(item.transform.position);
         yield return new WaitUntil(() => playerCharacter.Agent.hasPath);
         yield return new WaitWhile(() => playerCharacter.Agent.remainingDistance >= 1f);
-        playerCharacter.Agent.ResetPath();
-        playerCharacter.Agent.velocity = Vector3.zero;
+        playerCharacter.FullStop();
         yield return new WaitForEndOfFrame();
-        inventoryController.AddItemToInventory(item.GetComponent<Item>());
-        item.SetActive(false);
+
+        inventoryController.AddItemToInventory(item);
+        item.GetComponent<MeshRenderer>().enabled = false;
+        item.GetComponent<Collider>().enabled = false;
     }
 }

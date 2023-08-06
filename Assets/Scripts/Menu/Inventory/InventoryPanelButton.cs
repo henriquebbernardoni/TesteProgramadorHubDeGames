@@ -35,6 +35,10 @@ public class InventoryPanelButton : MonoBehaviour
             {
                 panelText.text += " " + associatedItem.Quantity.ToString() + "x";
             }
+            else if (associatedItem is Weapon weapon)
+            {
+                panelText.text += " - " + weapon.Durability.ToString();
+            }
             panelButton.onClick.RemoveAllListeners();
             panelButton.onClick.AddListener(associatedItem.InventoryInteraction);
         }
