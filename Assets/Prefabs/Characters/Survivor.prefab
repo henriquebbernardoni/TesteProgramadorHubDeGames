@@ -177,6 +177,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 3
+  currentState: 2
   survivorMaterial: {fileID: 2100000, guid: 5555ee2761da9c1458841338f93ea7b6, type: 2}
   playerMaterial: {fileID: 2100000, guid: a65f4ea6cd077284690287323ca6738e, type: 2}
   hiddenRenderer: {fileID: 5228648040364773657}

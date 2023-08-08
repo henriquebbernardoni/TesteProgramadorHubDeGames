@@ -7,19 +7,19 @@ using UnityEngine.AI;
 //Código de controle dos Zumbis, controlando as diferentes rotinas
 public class ZombieController : GenCharacterController
 {
-    private List<Transform> wanderPoints;
-    private int currentPoint;
-
     public enum ZombieState { WANDER, ATTACK, DEATH, NULL }
     private ZombieState state;
 
-    protected override void Start()
+    private List<Transform> wanderPoints;
+    private int currentPoint;
+
+    protected void Start()
     {
-        base.Start();
         FindWanderPoints();
         SetState(ZombieState.NULL);
     }
 
+    //Essas duas funções tem que ser usadas para se alterar e checar o estado atual do zumbi.
     public void SetState(ZombieState newState)
     {
         StopAllCoroutines();
@@ -52,7 +52,7 @@ public class ZombieController : GenCharacterController
     {
         while (true)
         {
-            Agent.SetDestination(ChooseNewWanderPoint());
+            Agent.SetDestination(GetRandomWanderPoint());
             yield return new WaitForEndOfFrame();
             while (Agent.hasPath)
             {
@@ -61,28 +61,27 @@ public class ZombieController : GenCharacterController
         }
     }
 
+    //Esse código encontra os pontos de rota pelos quais o Zumbi irá passar.
     private void FindWanderPoints()
     {
         Transform wanderPointsParent = GameObject.Find("ZombieWanderPoints").transform;
-        for (int i = 0; i < wanderPointsParent.childCount; i++)
+        foreach (Transform child in wanderPointsParent)
         {
-            wanderPoints.Add(wanderPointsParent.GetChild(i));
+            wanderPoints.Add(child);
         }
     }
 
     //Essa função gera um novo ponto de rota, garantindo que
     //o Agente não repita dois pontos de Rota seguidos.
-    private Vector3 ChooseNewWanderPoint()
+    private Vector3 GetRandomWanderPoint()
     {
-        Vector3 vector3;
-        int value;
-        value = currentPoint;
+        int value = Random.Range(0, wanderPoints.Count);
         while (value == currentPoint)
         {
             value = Random.Range(0, wanderPoints.Count);
         }
-        vector3 = wanderPoints[value].position;
-        return vector3;
+        currentPoint = value;
+        return wanderPoints[value].position;
     }
 
     protected override void DeathBehaviour()

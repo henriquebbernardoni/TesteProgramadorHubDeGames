@@ -8,8 +8,10 @@ using UnityEngine.AI;
 //incluindo movimentação, ataques, esconderijos e troca de PJ.
 public class PlayerController : MonoBehaviour
 {
+    private GameController gameController;
+    private InventoryController inventoryController;
     [SerializeField] private SurvivorController playerCharacter;
-    [SerializeField] private InventoryController inventoryController;
+
     [SerializeField] private TextMeshProUGUI actionDescription;
 
     public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
@@ -17,12 +19,17 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         inventoryController = GetComponent<InventoryController>();
+        gameController = GetComponent<GameController>();
     }
 
     private void Update()
     {
         DescribeAction();
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(0))
+        {
+            LeftButtonClick();
+        }
+        else if (Input.GetMouseButtonDown(1))
         {
             RightButtonClick();
         }
@@ -49,6 +56,11 @@ public class PlayerController : MonoBehaviour
             else if (hit.collider.GetComponent<ZombieController>())
             {
                 actionDescription.text = "Atacar!";
+            }
+            else if (hit.collider.GetComponent<SurvivorController>() &&
+                     hit.collider != playerCharacter.GetComponent<Collider>())
+            {
+                actionDescription.text = "Trocar de personagem";
             }
         }
     }
@@ -117,6 +129,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //Essa rotina é utilizada para pegar algum item.
     private IEnumerator GetItem(Item item)
     {
         playerCharacter.SetSurvivorDestination(item.transform.position);
@@ -130,13 +143,36 @@ public class PlayerController : MonoBehaviour
         item.GetComponent<Collider>().enabled = false;
     }
 
-    public void SetAsPlayerCharacter(SurvivorController newPlayer)
+    private void LeftButtonClick()
     {
-        if (playerCharacter)
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            PlayerCharacter.SetAsPlayerCharacter(false);
+            if (hit.collider.GetComponent<SurvivorController>() &&
+                hit.collider != playerCharacter.GetComponent<Collider>())
+            {
+                if (!playerCharacter.SurvivorGroup.Contains(hit.collider.GetComponent<SurvivorController>()))
+                {
+                    WarningText.Instance.SetWarningText("Esse sobrevivente não faz parte do seu grupo!" +
+                        "\nChegue perto de para acrescentá-lo ao seu grupo.");
+                }
+                else
+                {
+                    SetPlayerCharacter(hit.collider.GetComponent<SurvivorController>());
+                }
+            }
         }
-        newPlayer.SetAsPlayerCharacter(true);
-        PlayerCharacter = newPlayer;
+    }
+
+    //Esse é o método principal para trocar o jogador personagem.
+    public void SetPlayerCharacter(SurvivorController newPlayer)
+    {
+        foreach (SurvivorController survivor in gameController.Survivors)
+        {
+            survivor.SetPlayerCharacter(newPlayer);
+        }
+
+        playerCharacter = newPlayer;
     }
 }
