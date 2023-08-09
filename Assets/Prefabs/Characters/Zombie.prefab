@@ -435,4 +435,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 2
-  wanderPoints: []
+  rechargeTime: 2
+  currentState: 3
+  face: {fileID: 6401073833452531013}

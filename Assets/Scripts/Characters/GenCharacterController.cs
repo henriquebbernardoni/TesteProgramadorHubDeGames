@@ -19,7 +19,7 @@ public abstract class GenCharacterController : MonoBehaviour
     public NavMeshAgent Agent { get; private set; }
     public bool IsRecharging { get; private set; }
 
-    private void Awake()
+    protected virtual void Awake()
     {
         healthText = GetComponentInChildren<TextMeshPro>();
         _camera = Camera.main.transform;

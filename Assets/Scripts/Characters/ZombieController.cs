@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -8,23 +8,21 @@ using UnityEngine.AI;
 public class ZombieController : GenCharacterController
 {
     public enum ZombieState { WANDER, ATTACK, DEATH, NULL }
-    private ZombieState state;
+    [SerializeField] private ZombieState currentState;
 
+    [SerializeField] private Transform face;
     private List<Transform> wanderPoints;
-    private int currentPoint;
 
-    protected void Start()
-    {
-        FindWanderPoints();
-        SetState(ZombieState.NULL);
-    }
+    private List<SurvivorController> huntedSurvivors;
 
     //Essas duas funções tem que ser usadas para se alterar e checar o estado atual do zumbi.
     public void SetState(ZombieState newState)
     {
+        if (currentState == newState) return;
+
         StopAllCoroutines();
         FullStop();
-        state = newState;
+        currentState = newState;
 
         switch (newState)
         {
@@ -34,6 +32,7 @@ public class ZombieController : GenCharacterController
                 break;
             case ZombieState.ATTACK:
                 Agent.speed = 5.5f;
+                StartCoroutine(HuntingRoutine());
                 break;
             case ZombieState.DEATH:
                 break;
@@ -43,7 +42,7 @@ public class ZombieController : GenCharacterController
     }
     public ZombieState GetState()
     {
-        return state;
+        return currentState;
     }
 
     //No modo Wander, o Zumbi caminhará aleoriamente entre diferentes pontos do mapa
@@ -52,23 +51,49 @@ public class ZombieController : GenCharacterController
     {
         while (true)
         {
-            Agent.SetDestination(GetRandomWanderPoint());
+            Vector3 point = GetRandomWanderPoint();
+            Agent.SetDestination(point);
             yield return new WaitForEndOfFrame();
             while (Agent.hasPath)
             {
+                if (DetectSurvivors())
+                {
+                    SetState(ZombieState.ATTACK);
+                }
                 yield return new WaitForEndOfFrame();
             }
         }
     }
 
+    //Essa função detecta se algum sobrevivente cruzar diretamente a frente do zumbi.
+    private SurvivorController DetectSurvivors()
+    {
+        Vector3 origin = face.position;
+        Vector3 direction = face.forward;
+        Ray ray = new(origin, direction);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, 7.5f))
+        {
+            SurvivorController survivorController = hit.collider.GetComponent<SurvivorController>();
+            if (survivorController != null)
+            {
+                SurvivorController.SurvivorState state = survivorController.GetState();
+                if (state == SurvivorController.SurvivorState.FOLLOW || 
+                    state == SurvivorController.SurvivorState.WANDER)
+                {
+                    return survivorController;
+                }
+            }
+        }
+
+        return null;
+    }
+
     //Esse código encontra os pontos de rota pelos quais o Zumbi irá passar.
-    private void FindWanderPoints()
+    public void FindWanderPoints()
     {
         Transform wanderPointsParent = GameObject.Find("ZombieWanderPoints").transform;
-        foreach (Transform child in wanderPointsParent)
-        {
-            wanderPoints.Add(child);
-        }
+        wanderPoints = wanderPointsParent.Cast<Transform>().ToList();
     }
 
     //Essa função gera um novo ponto de rota, garantindo que
@@ -76,12 +101,13 @@ public class ZombieController : GenCharacterController
     private Vector3 GetRandomWanderPoint()
     {
         int value = Random.Range(0, wanderPoints.Count);
-        while (value == currentPoint)
-        {
-            value = Random.Range(0, wanderPoints.Count);
-        }
-        currentPoint = value;
         return wanderPoints[value].position;
+    }
+
+    private IEnumerator HuntingRoutine()
+    {
+        Debug.Log("Caçando!");
+        yield return null;
     }
 
     protected override void DeathBehaviour()

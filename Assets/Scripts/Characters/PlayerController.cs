@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
@@ -73,14 +74,14 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.collider.CompareTag("Floor"))
             {
+
                 StopAllCoroutines();
                 StartCoroutine(WalkHere(hit.point));
             }
             else if (hit.collider.GetComponent<HidingSpot>())
             {
                 StopAllCoroutines();
-                playerCharacter.FullStop();
-                StartCoroutine(hit.collider.GetComponent<HidingSpot>().EnterHidingSpot(playerCharacter));
+                StartCoroutine(HideHere(hit.collider.GetComponent<HidingSpot>()));
             }
             else if (hit.collider.GetComponent<Item>())
             {
@@ -117,6 +118,14 @@ public class PlayerController : MonoBehaviour
     //Inclui uma chacagem se no destino há algum esconderijo por perto.
     private IEnumerator WalkHere(Vector3 destination)
     {
+        List<SurvivorController> allButPlayer = playerCharacter.SurvivorGroup.
+            Where(survivor => survivor != playerCharacter && survivor.GetHidingSpot()).ToList();
+        for (int i = 0; i < allButPlayer.Count; i++)
+        {
+            allButPlayer[i].GetHidingSpot().ExitHidingSpot();
+        }
+
+        playerCharacter.StopAllCoroutines();
         playerCharacter.SetSurvivorDestination(destination);
         yield return new WaitUntil(() => playerCharacter.Agent.hasPath);
         yield return new WaitWhile(() => playerCharacter.Agent.hasPath);
@@ -125,8 +134,59 @@ public class PlayerController : MonoBehaviour
         HidingSpot hidingSpot = playerCharacter.DetectNearbyHidingSpot();
         if (hidingSpot)
         {
-            StartCoroutine(hidingSpot.EnterHidingSpot(playerCharacter));
+            StartCoroutine(HideHere(hidingSpot));
         }
+    }
+
+    private IEnumerator HideHere(HidingSpot hidingSpot)
+    {
+        yield return null;
+        playerCharacter.FullStop();
+        StartCoroutine(hidingSpot.EnterHidingSpot(playerCharacter));
+        if (playerCharacter.SurvivorGroup.Count > 1 && !hidingSpot.IsSurvivorHere())
+        {
+            List<SurvivorController> allButPlayer = playerCharacter.SurvivorGroup.
+                Where(survivor => survivor != playerCharacter).ToList();
+            List<HidingSpot> hidingOthers = NearestHidingSpots(hidingSpot, allButPlayer.Count);
+            for (int i = 0; i < hidingOthers.Count; i++)
+            {
+                StartCoroutine(hidingOthers[i].EnterHidingSpot(allButPlayer[i]));
+            }
+        }
+    }
+
+    public List<HidingSpot> NearestHidingSpots(HidingSpot excludedHidingSpot, int quantity)
+    {
+        List<HidingSpot> allHidingSpots = gameController.HidingSpots.
+            Where(spot => spot != excludedHidingSpot && !spot.IsSurvivorHere()).ToList();
+        List<HidingSpot> returnedSpots = new();
+        //allHidingSpots.Remove(excludedHidingSpot);
+        //allHidingSpots.RemoveAll(spot => spot.IsSurvivorHere());
+        allHidingSpots = allHidingSpots.OrderBy(spot =>
+            GetPathLength(excludedHidingSpot.transform.position, spot.transform.position)).ToList();
+        for (int i = 0; i < quantity; i++)
+        {
+            returnedSpots.Add(allHidingSpots[i]);
+        }
+        return returnedSpots;
+    }
+
+    private float GetPathLength(Vector3 origin, Vector3 destination)
+    {
+        NavMeshPath path = new NavMeshPath();
+        NavMesh.CalculatePath(origin, destination, NavMesh.AllAreas, path);
+
+        float length = 0f;
+        Vector3 previousCorner = path.corners[0];
+
+        for (int i = 1; i < path.corners.Length; i++)
+        {
+            Vector3 currentCorner = path.corners[i];
+            length += Vector3.Distance(previousCorner, currentCorner);
+            previousCorner = currentCorner;
+        }
+
+        return length;
     }
 
     //Essa rotina é utilizada para pegar algum item.

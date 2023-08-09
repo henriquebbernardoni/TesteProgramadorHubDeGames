@@ -1,10 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
-using static ZombieController;
 
 //Script controlador geral dos Sobrevivente (PJ ou não)
 //Caso sejam PJ eles terão acesso a funções mais avançadas
@@ -21,7 +19,7 @@ public class SurvivorController : GenCharacterController
     [SerializeField] private Renderer hiddenRenderer;
     [SerializeField] private Material hiddenMaterial;
     [SerializeField] private Material nonHiddenMaterial;
-    private HidingSpot currentHidingSpot;
+    [SerializeField] private HidingSpot currentHidingSpot;
 
     private Weapon selectedWeapon;
 
@@ -30,26 +28,38 @@ public class SurvivorController : GenCharacterController
 
     //O grupo refere às pessoas que o jogador já encontrou, segue ele, e podem
     //virar personagens jogáveis também.
-    public List<SurvivorController> SurvivorGroup { get => survivorGroup; set => survivorGroup = value; }
+    public List<SurvivorController> SurvivorGroup { get => survivorGroup; private set => survivorGroup = value; }
 
-    private void Start()
+    //Os zumbis que estão perseguindo o sobrevivente e seu grupo.
+    public List<ZombieController> huntedBy { get; private set; }
+
+    protected override void Awake()
     {
+        base.Awake();
         SurvivorGroup = new();
         if (!SurvivorGroup.Contains(this))
         {
             SurvivorGroup.Add(this);
         }
+
+        huntedBy = new();
     }
 
     //Use esses códigos para alterar e retornar o estado atual do Sobrevivente.
-    public void SetState(SurvivorState state)
+    public void SetState(SurvivorState newState)
     {
-        currentState = state;
+        if (currentState == newState) return;
 
-        switch (currentState)
+        StopAllCoroutines();
+        FullStop();
+        currentState = newState;
+
+        switch (newState)
         {
             case SurvivorState.WANDER:
                 hiddenRenderer.material = nonHiddenMaterial;
+                Agent.speed = 5f;
+                Agent.avoidancePriority = 40;
                 break;
             case SurvivorState.INITIAL:
                 hiddenRenderer.material = hiddenMaterial;
@@ -60,6 +70,8 @@ public class SurvivorController : GenCharacterController
                 break;
             case SurvivorState.FOLLOW:
                 hiddenRenderer.material = nonHiddenMaterial;
+                Agent.speed = 4f;
+                Agent.avoidancePriority = 50;
                 StopAllCoroutines();
                 StartCoroutine(FollowRoutine());
                 break;
@@ -81,14 +93,6 @@ public class SurvivorController : GenCharacterController
         {
             currentHidingSpot.ExitHidingSpot();
         }
-        if (playerCharacter == this)
-        {
-            SetState(SurvivorState.WANDER);
-        }
-        else
-        {
-            SetState(SurvivorState.FOLLOW);
-        }
         Agent.SetDestination(destination);
     }
 
@@ -103,6 +107,10 @@ public class SurvivorController : GenCharacterController
     public void SetHidingSpot(HidingSpot newHidingSpot)
     {
         currentHidingSpot = newHidingSpot;
+    }
+    public HidingSpot GetHidingSpot()
+    {
+        return currentHidingSpot;
     }
 
     //Use esses códigos para alterar e retornar a arma atual do Sobrevivente.
@@ -165,7 +173,7 @@ public class SurvivorController : GenCharacterController
         }
 
         playerCharacter.AddToSurvivorGroup(this, true);
-        SetState(SurvivorState.FOLLOW);
+        currentHidingSpot.ExitHidingSpot();
     }
 
     //Essa função adiciona um novo sobrevivente ao grupo, assegurando recursivamente
@@ -189,10 +197,24 @@ public class SurvivorController : GenCharacterController
         }
     }
 
+    //Esta rotina guia o sobrevivente seguindo o jogador, fazendo ele parar de se mexer
+    //ao chegar relativamente perto do personajem jogável.
     private IEnumerator FollowRoutine()
     {
         while (true)
         {
+            if (Vector3.Distance(transform.position, playerCharacter.transform.position) > 3.5f)
+            {
+                SetSurvivorDestination(playerCharacter.transform.position);
+            }
+            else
+            {
+                if (Agent.velocity != Vector3.zero)
+                {
+                    Agent.ResetPath();
+                }
+            }
+
             yield return new WaitForEndOfFrame();
         }
     }
@@ -202,23 +224,32 @@ public class SurvivorController : GenCharacterController
         SetState(SurvivorState.DEATH);
     }
 
-    //Essa função assegura que a mudança de personagem possa ocorrer de forma correta.
+    //Essa função assegura que a mudança de estado e material jogador ocorra de forma correta.
     public void SetPlayerCharacter(SurvivorController newPlayer)
     {
         playerCharacter = newPlayer;
+        SurvivorState currentState = GetState();
 
         if (playerCharacter == this)
         {
             GetComponentInChildren<Renderer>().material = playerMaterial;
-            SetState(SurvivorState.WANDER);
+            if (currentState == SurvivorState.FOLLOW)
+            {
+                SetState(SurvivorState.WANDER);
+            }
         }
         else
         {
             GetComponentInChildren<Renderer>().material = survivorMaterial;
-            if (GetState() == SurvivorState.WANDER)
+            if (currentState == SurvivorState.WANDER)
             {
                 SetState(SurvivorState.FOLLOW);
             }
         }
+    }
+
+    public bool IsPlayerCharacter()
+    {
+        return this == playerCharacter;
     }
 }

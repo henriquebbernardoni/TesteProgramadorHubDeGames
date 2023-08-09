@@ -10,8 +10,7 @@ public class PieceOfWood : Weapon
         attacker.SetSurvivorDestination(defender.transform.position);
         yield return new WaitUntil(() => attacker.Agent.hasPath);
         yield return new WaitWhile(() => attacker.Agent.remainingDistance >= 1.5f);
-        attacker.Agent.ResetPath();
-        attacker.Agent.velocity = Vector3.zero;
+        attacker.FullStop();
         yield return new WaitForEndOfFrame();
 
         Vector3 forward = defender.transform.TransformDirection(Vector3.forward);
@@ -30,7 +29,7 @@ public class PieceOfWood : Weapon
             }
             else
             {
-                WarningText.Instance.SetWarningText("Ataque acertou!");
+                WarningText.Instance.SetWarningText("Ataque errou!");
             }
         }
 

@@ -177,12 +177,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 3
+  rechargeTime: 3
   currentState: 2
   survivorMaterial: {fileID: 2100000, guid: 5555ee2761da9c1458841338f93ea7b6, type: 2}
   playerMaterial: {fileID: 2100000, guid: a65f4ea6cd077284690287323ca6738e, type: 2}
   hiddenRenderer: {fileID: 5228648040364773657}
   hiddenMaterial: {fileID: 2100000, guid: 3886b25cb8529434896ee3698d51e575, type: 2}
   nonHiddenMaterial: {fileID: 2100000, guid: eafa63c343da5f345aeeb2b643e636f1, type: 2}
+  currentHidingSpot: {fileID: 0}
+  playerCharacter: {fileID: 0}
+  survivorGroup: []
 --- !u!1 &4310525955134587417
 GameObject:
   m_ObjectHideFlags: 0

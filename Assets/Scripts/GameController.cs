@@ -24,6 +24,7 @@ public class GameController : MonoBehaviour
     private PlayerController playerController;
 
     public List<SurvivorController> Survivors { get => survivors; private set => survivors = value; }
+    public List<HidingSpot> HidingSpots { get => hidingSpots; private set => hidingSpots = value; }
 
     private void Awake()
     {
@@ -36,7 +37,7 @@ public class GameController : MonoBehaviour
 
     private void Start()
     {
-        SetUpLevel(2, 0);
+        SetUpLevel(2, 1);
     }
 
     //FUNÇÕES E ROTINAS RELACIONADSS A SET-UP DE NÍVEL - START
@@ -58,7 +59,7 @@ public class GameController : MonoBehaviour
         //Os esconderijos são intanciados e tem suas posições randomizadas.
         for (int i = 0; i < (2 * survivorsAmount); i++)
         {
-            hidingSpots.Add(Instantiate(hidingSpotPrefab).GetComponent<HidingSpot>());
+            HidingSpots.Add(Instantiate(hidingSpotPrefab).GetComponent<HidingSpot>());
         }
         RandomizeHidingSpots();
 
@@ -72,24 +73,24 @@ public class GameController : MonoBehaviour
     //assegurando que eles não fiquem muito perto uns dos outros.
     private void RandomizeHidingSpots()
     {
-        for (int i = 0; i < hidingSpots.Count; i++)
+        for (int i = 0; i < HidingSpots.Count; i++)
         {
-            hidingSpots[i].transform.position =
+            HidingSpots[i].transform.position =
                 new(Random.Range(-25 / 2, 25 / 2),
-                hidingSpots[i].transform.position.y,
+                HidingSpots[i].transform.position.y,
                 Random.Range(-25 / 2, 25 / 2));
 
-            hidingSpots[i].transform.rotation =
+            HidingSpots[i].transform.rotation =
                 Quaternion.Euler(transform.rotation.eulerAngles.x,
                 Random.Range(0f, 360f),
                 transform.rotation.eulerAngles.z);
         }
-        for (int i = 0; i < hidingSpots.Count; i++)
+        for (int i = 0; i < HidingSpots.Count; i++)
         {
             for (int j = 0; j < i; j++)
             {
-                if (Vector3.Distance(hidingSpots[i].transform.position,
-                    hidingSpots[j].transform.position) <= 5f)
+                if (Vector3.Distance(HidingSpots[i].transform.position,
+                    HidingSpots[j].transform.position) <= 5f)
                 {
                     RandomizeHidingSpots();
                 }
@@ -131,12 +132,12 @@ public class GameController : MonoBehaviour
     {
         SurvivorController[] rescuees = 
             Survivors.Where(survivor => survivor.GetState() == SurvivorController.SurvivorState.INITIAL).ToArray();
-        int[] positions = GenerateRandomNumbers(rescuees.Length, hidingSpots.Count);
+        int[] positions = GenerateRandomNumbers(rescuees.Length, HidingSpots.Count);
 
         for (int i = 0; i < rescuees.Length; i++)
         {
-            rescuees[i].Agent.Warp(hidingSpots[positions[i]].transform.position);
-            hidingSpots[positions[i]].SetHidingSpot(rescuees[i]);
+            rescuees[i].Agent.Warp(HidingSpots[positions[i]].transform.position);
+            HidingSpots[positions[i]].SetHidingSpot(rescuees[i]);
             rescuees[i].SetState(SurvivorController.SurvivorState.INITIAL);
         }
     }
@@ -171,6 +172,8 @@ public class GameController : MonoBehaviour
         foreach (ZombieController zombieController in zombies)
         {
             zombieController.ModifyHealth(5);
+            zombieController.FindWanderPoints();
+            zombieController.SetState(ZombieController.ZombieState.WANDER);
         }
     }
 
