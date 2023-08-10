@@ -26,17 +26,22 @@ public class WarningText : MonoBehaviour
         StartCoroutine(WarningTextRoutine(text));
     }
 
+    public void AddToWarningText(string text)
+    {
+        if (warningText.text == string.Empty)
+        {
+            SetWarningText(text);
+        }
+        else
+        {
+            warningText.text += "\n" + text;
+        }
+    }
+
     private IEnumerator WarningTextRoutine(string text)
     {
         warningText.text = text;
-
-        float waitTime = 0f;
-        while (waitTime <= 2.5f)
-        {
-            waitTime += Time.deltaTime;
-            yield return new WaitForEndOfFrame();
-        }
-
+        yield return new WaitForSeconds(4f);
         warningText.text = string.Empty;
     }
 }

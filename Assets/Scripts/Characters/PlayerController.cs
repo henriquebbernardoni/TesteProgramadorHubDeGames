@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
                 actionDescription.text = "Atacar!";
             }
             else if (hit.collider.GetComponent<SurvivorController>() &&
-                     hit.collider != playerCharacter.GetComponent<Collider>())
+                     hit.collider != PlayerCharacter.GetComponent<Collider>())
             {
                 actionDescription.text = "Trocar de personagem";
             }
@@ -74,7 +74,6 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.collider.CompareTag("Floor"))
             {
-
                 StopAllCoroutines();
                 StartCoroutine(WalkHere(hit.point));
             }
@@ -91,11 +90,11 @@ public class PlayerController : MonoBehaviour
             }
             else if (hit.collider.GetComponent<ZombieController>())
             {
-                if (!playerCharacter.GetWeapon())
+                if (!PlayerCharacter.GetWeapon())
                 {
                     WarningText.Instance.SetWarningText("Nenhuma arma selecionada!");
                 }
-                else if (playerCharacter.IsRecharging)
+                else if (PlayerCharacter.IsRecharging)
                 {
                     WarningText.Instance.SetWarningText("Recarregando!");
                 }
@@ -106,9 +105,8 @@ public class PlayerController : MonoBehaviour
                 else
                 {
                     StopAllCoroutines();
-                    playerCharacter.FullStop();
-                    StartCoroutine(playerCharacter.GetWeapon().
-                        WeaponBehaviour(playerCharacter, hit.collider.GetComponent<ZombieController>()));
+                    StartCoroutine(PlayerCharacter.GetWeapon().
+                        WeaponBehaviour(PlayerCharacter, hit.collider.GetComponent<ZombieController>()));
                 }
             }
         }
@@ -118,20 +116,20 @@ public class PlayerController : MonoBehaviour
     //Inclui uma chacagem se no destino há algum esconderijo por perto.
     private IEnumerator WalkHere(Vector3 destination)
     {
-        List<SurvivorController> allButPlayer = playerCharacter.SurvivorGroup.
-            Where(survivor => survivor != playerCharacter && survivor.GetHidingSpot()).ToList();
+        List<SurvivorController> allButPlayer = PlayerCharacter.SurvivorGroup.
+            Where(survivor => survivor != PlayerCharacter && survivor.GetHidingSpot()).ToList();
         for (int i = 0; i < allButPlayer.Count; i++)
         {
             allButPlayer[i].GetHidingSpot().ExitHidingSpot();
         }
 
-        playerCharacter.StopAllCoroutines();
-        playerCharacter.SetSurvivorDestination(destination);
-        yield return new WaitUntil(() => playerCharacter.Agent.hasPath);
-        yield return new WaitWhile(() => playerCharacter.Agent.hasPath);
+        PlayerCharacter.StopAllCoroutines();
+        PlayerCharacter.SetSurvivorDestination(destination);
+        yield return new WaitUntil(() => PlayerCharacter.Agent.hasPath);
+        yield return new WaitWhile(() => PlayerCharacter.Agent.hasPath);
         yield return new WaitForEndOfFrame();
 
-        HidingSpot hidingSpot = playerCharacter.DetectNearbyHidingSpot();
+        HidingSpot hidingSpot = PlayerCharacter.DetectNearbyHidingSpot();
         if (hidingSpot)
         {
             StartCoroutine(HideHere(hidingSpot));
@@ -233,6 +231,7 @@ public class PlayerController : MonoBehaviour
             survivor.SetPlayerCharacter(newPlayer);
         }
 
-        playerCharacter = newPlayer;
+        PlayerCharacter = newPlayer;
+        GetComponent<InventoryController>().SetPlayerCharacter(PlayerCharacter);
     }
 }

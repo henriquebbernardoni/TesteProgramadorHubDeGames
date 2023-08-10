@@ -15,7 +15,7 @@ public class HidingSpot : MonoBehaviour
 
     public IEnumerator EnterHidingSpot(SurvivorController survivorController)
     {
-        if (survivorController.huntedBy.Count > 0)
+        if (survivorController.HuntedBy.Count > 0)
         {
             WarningText.Instance.SetWarningText("Você não pode se esconder!\nSeu grupo está sendo perseguido!");
             yield break;
@@ -40,7 +40,7 @@ public class HidingSpot : MonoBehaviour
         survivorHere.SetHidingSpot(null);
         survivorHere = null;
 
-        if (wasHere.IsPlayerCharacter())
+        if (wasHere.PlayerCharacter == wasHere)
         {
             wasHere.SetState(SurvivorState.WANDER);
 
@@ -64,7 +64,7 @@ public class HidingSpot : MonoBehaviour
 
     public void SetHidingSpot(SurvivorController survivorController)
     {
-        if (survivorController.huntedBy.Count > 0)
+        if (survivorController.HuntedBy.Count > 0)
         {
             WarningText.Instance.SetWarningText("Você não pode se esconder!\nSeu grupo está sendo perseguido!");
             return;

@@ -8,7 +8,7 @@ using UnityEngine.AI;
 //Caso sejam PJ eles terão acesso a funções mais avançadas
 public class SurvivorController : GenCharacterController
 {
-    public enum SurvivorState { WANDER, HIDE, INITIAL, FOLLOW, DEATH }
+    public enum SurvivorState { INITIAL, WANDER, RESCUE, FOLLOW, HIDE, DEATH }
     [SerializeField] private SurvivorState currentState;
 
     [SerializeField] private Material survivorMaterial;
@@ -23,7 +23,6 @@ public class SurvivorController : GenCharacterController
 
     private Weapon selectedWeapon;
 
-    [SerializeField] private SurvivorController playerCharacter;
     [SerializeField] private List<SurvivorController> survivorGroup;
 
     //O grupo refere às pessoas que o jogador já encontrou, segue ele, e podem
@@ -31,7 +30,7 @@ public class SurvivorController : GenCharacterController
     public List<SurvivorController> SurvivorGroup { get => survivorGroup; private set => survivorGroup = value; }
 
     //Os zumbis que estão perseguindo o sobrevivente e seu grupo.
-    public List<ZombieController> huntedBy { get; private set; }
+    public List<ZombieController> HuntedBy { get; private set; }
 
     protected override void Awake()
     {
@@ -42,7 +41,7 @@ public class SurvivorController : GenCharacterController
             SurvivorGroup.Add(this);
         }
 
-        huntedBy = new();
+        HuntedBy = new();
     }
 
     //Use esses códigos para alterar e retornar o estado atual do Sobrevivente.
@@ -61,7 +60,7 @@ public class SurvivorController : GenCharacterController
                 Agent.speed = 5f;
                 Agent.avoidancePriority = 40;
                 break;
-            case SurvivorState.INITIAL:
+            case SurvivorState.RESCUE:
                 hiddenRenderer.material = hiddenMaterial;
                 StartCoroutine(InitialRoutine());
                 break;
@@ -89,6 +88,11 @@ public class SurvivorController : GenCharacterController
     //que ele sempre entre no modo Wander (ou Follow) quando se movimenta.
     public void SetSurvivorDestination(Vector3 destination)
     {
+        if (GetState() == SurvivorState.INITIAL)
+        {
+            SetState(SurvivorState.WANDER);
+        }
+
         if (currentHidingSpot)
         {
             currentHidingSpot.ExitHidingSpot();
@@ -139,14 +143,14 @@ public class SurvivorController : GenCharacterController
         while (!isDetecting)
         {
             origin = new Vector3(transform.position.x, 1, transform.position.z);
-            destination = new Vector3(playerCharacter.transform.position.x, 1, playerCharacter.transform.position.z);
+            destination = new Vector3(PlayerCharacter.transform.position.x, 1, PlayerCharacter.transform.position.z);
             direction = destination - origin;
             hits = Physics.RaycastAll(origin, direction, 5f);
 
             wallHit = false;
             playerHit = false;
 
-            Debug.DrawRay(origin, direction * 2.5f, Color.red);
+            Debug.DrawRay(origin, direction.normalized * 5f, Color.red);
 
             foreach (RaycastHit hit in hits)
             {
@@ -158,7 +162,7 @@ public class SurvivorController : GenCharacterController
             }
             foreach (RaycastHit hit in hits)
             {
-                if (hit.collider == playerCharacter.GetComponent<Collider>())
+                if (hit.collider == PlayerCharacter.GetComponent<Collider>())
                 {
                     playerHit = true;
                     break;
@@ -172,12 +176,13 @@ public class SurvivorController : GenCharacterController
             yield return new WaitForEndOfFrame();
         }
 
-        playerCharacter.AddToSurvivorGroup(this, true);
+        LevelController.Instance.AddToRescuedSurvivors();
+        PlayerCharacter.AddToSurvivorGroup(this, true);
         currentHidingSpot.ExitHidingSpot();
     }
 
-    //Essa função adiciona um novo sobrevivente ao grupo, assegurando recursivamente
-    //que este seja adicionado também ao grupo de outros grupos.
+    //Essas funções adiciona/remove um novo sobrevivente ao grupo, assegurando recursivamente
+    //que este seja adicionado/removido também ao grupo de outros grupos.
     public void AddToSurvivorGroup(SurvivorController survivor, bool recursiveCheck)
     {
         if (!SurvivorGroup.Contains(survivor))
@@ -196,6 +201,21 @@ public class SurvivorController : GenCharacterController
             }
         }
     }
+    public void RemoveFromSurvivorGroup(SurvivorController survivor, bool recursiveCheck)
+    {
+        if (SurvivorGroup.Contains(survivor))
+        {
+            SurvivorGroup.Remove(survivor);
+        }
+
+        if (recursiveCheck)
+        {
+            foreach (SurvivorController survivorController in SurvivorGroup)
+            {
+                    survivorController.RemoveFromSurvivorGroup(survivor, false);
+            }
+        }
+    }
 
     //Esta rotina guia o sobrevivente seguindo o jogador, fazendo ele parar de se mexer
     //ao chegar relativamente perto do personajem jogável.
@@ -203,9 +223,9 @@ public class SurvivorController : GenCharacterController
     {
         while (true)
         {
-            if (Vector3.Distance(transform.position, playerCharacter.transform.position) > 3.5f)
+            if (Vector3.Distance(transform.position, PlayerCharacter.transform.position) > 3.5f)
             {
-                SetSurvivorDestination(playerCharacter.transform.position);
+                SetSurvivorDestination(PlayerCharacter.transform.position);
             }
             else
             {
@@ -219,18 +239,28 @@ public class SurvivorController : GenCharacterController
         }
     }
 
+    public void AddToHuntedList(ZombieController zombie)
+    {
+        if (!HuntedBy.Contains(zombie))
+        {
+            HuntedBy.Add(zombie);
+        }
+    }
+
     protected override void DeathBehaviour()
     {
+        WarningText.Instance.SetWarningText("Um sobrevivente morreu!");
+        RemoveFromSurvivorGroup(this, true);
         SetState(SurvivorState.DEATH);
     }
 
     //Essa função assegura que a mudança de estado e material jogador ocorra de forma correta.
     public void SetPlayerCharacter(SurvivorController newPlayer)
     {
-        playerCharacter = newPlayer;
+        PlayerCharacter = newPlayer;
         SurvivorState currentState = GetState();
 
-        if (playerCharacter == this)
+        if (PlayerCharacter == this)
         {
             GetComponentInChildren<Renderer>().material = playerMaterial;
             if (currentState == SurvivorState.FOLLOW)
@@ -246,10 +276,5 @@ public class SurvivorController : GenCharacterController
                 SetState(SurvivorState.FOLLOW);
             }
         }
-    }
-
-    public bool IsPlayerCharacter()
-    {
-        return this == playerCharacter;
     }
 }

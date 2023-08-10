@@ -10,29 +10,30 @@ public abstract class Weapon : Item
 
     public override void InventoryInteraction()
     {
-        if (inventoryController.PlayerController.GetWeapon())
+        if (inventoryController.PlayerCharacter.GetWeapon())
         {
-            if (inventoryController.PlayerController.GetWeapon() == this)
+            if (inventoryController.PlayerCharacter.GetWeapon() == this)
             {
-                inventoryController.PlayerController.SetWeapon(null);
+                inventoryController.PlayerCharacter.SetWeapon(null);
                 inventoryController.AddItemToInventory(this);
             }
             else
             {
-                inventoryController.AddItemToInventory(inventoryController.PlayerController.GetWeapon());
-                inventoryController.PlayerController.SetWeapon(this);
+                inventoryController.AddItemToInventory(inventoryController.PlayerCharacter.GetWeapon());
+                inventoryController.PlayerCharacter.SetWeapon(this);
                 inventoryController.RemoveItemFromInventory(this);
             }
         }
         else
         {
-            inventoryController.PlayerController.SetWeapon(this);
+            inventoryController.PlayerCharacter.SetWeapon(this);
             inventoryController.RemoveItemFromInventory(this);
         }
     }
 
     public virtual IEnumerator WeaponBehaviour(SurvivorController attacker, ZombieController defender)
     {
+        attacker.FullStop();
         yield return new WaitForEndOfFrame();
         StartCoroutine(attacker.RechargeAttack());
         Durability--;
@@ -40,7 +41,7 @@ public abstract class Weapon : Item
         {
             attacker.SetWeapon(null);
             inventoryController.WeaponSelectButton.UpdateAppearence(null);
-            WarningText.Instance.SetWarningText(ObjectName + " quebrou!");
+            WarningText.Instance.AddToWarningText(ObjectName + " quebrou!");
         }
     }
 }

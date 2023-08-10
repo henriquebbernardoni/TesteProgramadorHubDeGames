@@ -6,6 +6,8 @@ public class Medicine : Item
 {
     public override void InventoryInteraction()
     {
-        inventoryController.PlayerController.ModifyHealth(2);
+        base.InventoryInteraction();
+        inventoryController.PlayerCharacter.ModifyHealth(2);
+        RemoveQuantity();
     }
 }

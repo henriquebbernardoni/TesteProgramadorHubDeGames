@@ -16,14 +16,18 @@ public abstract class GenCharacterController : MonoBehaviour
 
     private Transform _camera;
 
+    [SerializeField] private SurvivorController playerCharacter;
+
     public NavMeshAgent Agent { get; private set; }
     public bool IsRecharging { get; private set; }
+    public SurvivorController PlayerCharacter { get => playerCharacter; protected set => playerCharacter = value; }
 
     protected virtual void Awake()
     {
         healthText = GetComponentInChildren<TextMeshPro>();
         _camera = Camera.main.transform;
         Agent = GetComponent<NavMeshAgent>();
+        ModifyHealth(maxHealth);
     }
 
     private void LateUpdate()

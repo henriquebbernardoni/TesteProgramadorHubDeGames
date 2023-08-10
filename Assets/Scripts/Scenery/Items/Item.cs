@@ -8,7 +8,7 @@ public abstract class Item : MonoBehaviour
     [SerializeField] private string objectDescription;
     //Para economizar espaço no inventário, ítens que não possuem durabilidade serão amontoados
     [SerializeField] private bool isStackable;
-    private int quantity;
+    [SerializeField] private int quantity;
 
     public string ObjectName { get => objectName; protected set => objectName = value; }
     public string ObjectDescription { get => objectDescription; protected set => objectDescription = value; }
@@ -27,6 +27,7 @@ public abstract class Item : MonoBehaviour
     public virtual void InventoryInteraction()
     {
         Debug.Log(objectName);
+        inventoryController.RemoveItemFromInventory(this);
     }
 
     public void AddQuantity()

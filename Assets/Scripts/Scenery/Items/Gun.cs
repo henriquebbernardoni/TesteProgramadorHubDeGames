@@ -7,6 +7,7 @@ public class Gun : Weapon
 {
     public override IEnumerator WeaponBehaviour(SurvivorController attacker, ZombieController defender)
     {
+        attacker.FullStop();
         attacker.transform.LookAt(defender.transform.position);
         Vector3 originTransform = attacker.transform.Find("Body/Face").position;
         Vector3 targetTransform = defender.transform.Find("Body").position;
@@ -14,6 +15,7 @@ public class Gun : Weapon
         Vector3 direction = targetTransform - originTransform;
         Ray ray = new Ray(originTransform, direction);
         RaycastHit hit;
+        yield return new WaitForEndOfFrame();
 
         if (Physics.Raycast(ray, out hit) && hit.collider.gameObject == defender.gameObject)
         {
@@ -49,17 +51,18 @@ public class Gun : Weapon
             if (willHit)
             {
                 defender.ModifyHealth(-2);
+                WarningText.Instance.AddToWarningText("O tiro acertou!");
             }
             else
             {
-                Debug.Log("Errou!");
+                WarningText.Instance.AddToWarningText("O tiro errou!");
             }
         }
         else
         {
-            Debug.Log("Fora de alcance");
+            WarningText.Instance.AddToWarningText("O alvo está fora de vista!");
         }
 
-        yield return base.WeaponBehaviour(attacker, defender);
+        StartCoroutine(base.WeaponBehaviour(attacker, defender));
     }
 }

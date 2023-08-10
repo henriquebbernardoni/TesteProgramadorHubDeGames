@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class InventoryPanelButton : MonoBehaviour
 {
-    private Item associatedItem;
+    [SerializeField] private Item associatedItem;
 
     private Button panelButton;
     private TextMeshProUGUI panelText;

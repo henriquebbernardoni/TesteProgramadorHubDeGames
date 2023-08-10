@@ -11,6 +11,7 @@ public class PieceOfWood : Weapon
         yield return new WaitUntil(() => attacker.Agent.hasPath);
         yield return new WaitWhile(() => attacker.Agent.remainingDistance >= 1.5f);
         attacker.FullStop();
+        attacker.transform.LookAt(defender.transform.position);
         yield return new WaitForEndOfFrame();
 
         Vector3 forward = defender.transform.TransformDirection(Vector3.forward);
@@ -18,21 +19,21 @@ public class PieceOfWood : Weapon
         if (Vector3.Dot(forward, direction) < 0)
         {
             defender.ModifyHealth(-2);
-            WarningText.Instance.SetWarningText("Ataque acertou!");
+            WarningText.Instance.AddToWarningText("Ataque acertou!");
         }
         else
         {
             if (Random.value < 0.5f)
             {
                 defender.ModifyHealth(-1);
-                WarningText.Instance.SetWarningText("Ataque acertou!");
+                WarningText.Instance.AddToWarningText("Ataque acertou!");
             }
             else
             {
-                WarningText.Instance.SetWarningText("Ataque errou!");
+                WarningText.Instance.AddToWarningText("Ataque errou!");
             }
         }
 
-        yield return base.WeaponBehaviour(attacker, defender);
+        StartCoroutine(base.WeaponBehaviour(attacker, defender));
     }
 }

@@ -7,22 +7,17 @@ using UnityEngine.UI;
 
 public class InventoryController : MonoBehaviour
 {
-    private List<Item> inventoryItems;
+    private List<Item> inventoryItems = new();
 
     [SerializeField] private InventoryPanelButton[] inventoryButtons;
     [SerializeField] private InventoryPanelButton weaponSelectButton;
     [SerializeField] private GameObject inventoryPanel;
 
-    private SurvivorController playerController;
+    [SerializeField] private SurvivorController playerCharacter;
 
     public InventoryPanelButton WeaponSelectButton { get => weaponSelectButton; private set => weaponSelectButton = value; }
-    public SurvivorController PlayerController { get => playerController; private set => playerController = value; }
-
-    private void Awake()
-    {
-        inventoryItems = new List<Item>();
-        PlayerController = GetComponent<PlayerController>().PlayerCharacter;
-    }
+    public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
+    public List<Item> InventoryItems { get => inventoryItems; private set => inventoryItems = value; }
 
     private void Start()
     {
@@ -43,17 +38,17 @@ public class InventoryController : MonoBehaviour
         if (item.IsStackable)
         {
             Item firstItem = null;
-            for (int i = 0; i < inventoryItems.Count; i++)
+            for (int i = 0; i < InventoryItems.Count; i++)
             {
-                if (inventoryItems[i].GetType() == item.GetType())
+                if (InventoryItems[i].GetType() == item.GetType())
                 {
-                    firstItem = inventoryItems[i];
+                    firstItem = InventoryItems[i];
                     break;
                 }
             }
             if (firstItem == null)
             {
-                inventoryItems.Add(item);
+                InventoryItems.Add(item);
                 item.AddQuantity();
             }
             else
@@ -63,8 +58,10 @@ public class InventoryController : MonoBehaviour
         }
         else
         {
-            inventoryItems.Add(item);
+            InventoryItems.Add(item);
         }
+
+        LevelController.Instance.AddToCollectedItems();
 
         if (inventoryPanel.activeInHierarchy)
         {
@@ -77,11 +74,11 @@ public class InventoryController : MonoBehaviour
         if (item.IsStackable)
         {
             Item firstItem = null;
-            for (int i = 0; i < inventoryItems.Count; i++)
+            for (int i = 0; i < InventoryItems.Count; i++)
             {
-                if (inventoryItems[i].GetType() == item.GetType())
+                if (InventoryItems[i].GetType() == item.GetType())
                 {
-                    firstItem = inventoryItems[i];
+                    firstItem = InventoryItems[i];
                     break;
                 }
             }
@@ -94,17 +91,17 @@ public class InventoryController : MonoBehaviour
                 item.RemoveQuantity();
                 if (item.Quantity == 0)
                 {
-                    inventoryItems.Remove(item);
+                    InventoryItems.Remove(item);
                 }
             }
         }
         else
         {
-            if (!inventoryItems.Contains(item))
+            if (!InventoryItems.Contains(item))
             {
                 return;
             }
-            inventoryItems.Remove(item);
+            InventoryItems.Remove(item);
         }
 
         if (inventoryPanel.activeInHierarchy)
@@ -135,23 +132,28 @@ public class InventoryController : MonoBehaviour
     {
         for (int i = 0; i < inventoryButtons.Length; i++)
         {
-            if (i >= inventoryItems.Count)
+            if (i >= InventoryItems.Count)
             {
                 inventoryButtons[i].UpdateAppearence(null);
             }
             else
             {
-                inventoryButtons[i].UpdateAppearence(inventoryItems[i]);
+                inventoryButtons[i].UpdateAppearence(InventoryItems[i]);
             }
         }
 
-        if (PlayerController.GetWeapon())
+        if (PlayerCharacter.GetWeapon())
         {
-            weaponSelectButton.UpdateAppearence(PlayerController.GetWeapon());
+            weaponSelectButton.UpdateAppearence(PlayerCharacter.GetWeapon());
         }
         else
         {
             weaponSelectButton.UpdateAppearence(null);
         }
+    }
+
+    public void SetPlayerCharacter(SurvivorController survivor)
+    {
+        PlayerCharacter = survivor;
     }
 }
