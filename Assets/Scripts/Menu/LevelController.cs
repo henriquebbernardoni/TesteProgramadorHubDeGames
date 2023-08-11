@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -53,7 +54,7 @@ public class LevelController : MonoBehaviour
     {
         deathScreen.transform.Find("ScoreText").GetComponent<TextMeshProUGUI>().text =
             "Itens coletados: " + collectedItems + " / " +
-            "Sobreviventes resgatados: " + rescuedSurvivors + " / " + 
+            "Sobreviventes resgatados: " + rescuedSurvivors + " / " +
             "Zumbis mortos: " + killedZombies;
         deathScreen.SetActive(true);
     }
@@ -64,6 +65,10 @@ public class LevelController : MonoBehaviour
             "Sobreviventes resgatados: " + rescuedSurvivors + " / " +
             "Zumbis mortos: " + killedZombies;
         victoryScreen.SetActive(true);
+    }
+    public void DisplayNextLevelScreen()
+    {
+
     }
 
     public void NextLevel()
@@ -94,5 +99,26 @@ public class LevelController : MonoBehaviour
     public void QuitGame()
     {
         Application.Quit();
+    }
+
+    public bool AllZombiesDead()
+    {
+        return gameController.Zombies.All
+            (x => x.GetState() == ZombieController.ZombieState.DEATH);
+    }
+    public void NextLevelZombiesDead()
+    {
+
+    }
+
+    public bool MinSurvivorsRescued()
+    {
+        return gameController.Survivors.Where(x => x.GetState() == 
+            SurvivorController.SurvivorState.RESCUE).ToArray().Length <=
+            gameController.SurvivorsAdded - 2;
+    }
+    public void NextLevelSurvivorsRescued()
+    {
+
     }
 }

@@ -34,10 +34,16 @@ public class ZombieController : GenCharacterController
                 break;
             case ZombieState.ATTACK:
                 Agent.speed = 5.5f;
+                PlayerCharacter.AddToHuntedList(this, true);
                 StartCoroutine(HuntingRoutine());
                 break;
             case ZombieState.DEATH:
+                PlayerCharacter.RemoveFromHuntedList(this, true);
                 LevelController.Instance.AddToKilledZombies();
+                if (LevelController.Instance.AllZombiesDead())
+                {
+                    LevelController.Instance.NextLevelZombiesDead();
+                }
                 break;
             case ZombieState.NULL:
                 break;
@@ -118,12 +124,22 @@ public class ZombieController : GenCharacterController
             if (PlayerCharacter.SurvivorGroup.Count <= 1)
             {
                 nearestSurvivor = PlayerCharacter;
+                if (nearestSurvivor.GetState() == SurvivorState.FINAL)
+                {
+                    nearestSurvivor = null;
+                }
             }
             else
             {
                 nearestSurvivor = PlayerCharacter.SurvivorGroup.
                     Where(survivor => survivor != PlayerCharacter).OrderBy(survivor =>
                     Vector3.Distance(transform.position, survivor.transform.position)).FirstOrDefault();
+
+            }
+            if (!nearestSurvivor)
+            {
+                SetState(ZombieState.WANDER);
+                yield break;
             }
 
             if (Vector3.Distance(transform.position, nearestSurvivor.transform.position) >= 2f)

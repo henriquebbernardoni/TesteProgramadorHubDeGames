@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Floor
   - StaticScenery
+  - Final
   layers:
   - Default
   - TransparentFX

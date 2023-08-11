@@ -26,7 +26,6 @@ public abstract class Item : MonoBehaviour
     //Alguns ítens não terão reação alguma.
     public virtual void InventoryInteraction()
     {
-        Debug.Log(objectName);
         inventoryController.RemoveItemFromInventory(this);
     }
 

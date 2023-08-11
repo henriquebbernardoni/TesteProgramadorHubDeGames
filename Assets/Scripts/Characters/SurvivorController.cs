@@ -8,7 +8,7 @@ using UnityEngine.AI;
 //Caso sejam PJ eles terão acesso a funções mais avançadas
 public class SurvivorController : GenCharacterController
 {
-    public enum SurvivorState { INITIAL, WANDER, RESCUE, FOLLOW, HIDE, DEATH }
+    public enum SurvivorState { INITIAL, WANDER, RESCUE, FOLLOW, HIDE, FINAL, DEATH }
     [SerializeField] private SurvivorState currentState;
 
     [SerializeField] private Material survivorMaterial;
@@ -76,6 +76,17 @@ public class SurvivorController : GenCharacterController
                 break;
             case SurvivorState.DEATH:
                 hiddenRenderer.material = nonHiddenMaterial;
+                if (FindObjectOfType<GameController>().
+                    Survivors.Any(x => x.GetState() == SurvivorState.INITIAL))
+                {
+                    FindObjectOfType<PlayerController>().SetPlayerCharacter(
+                        FindObjectOfType<GameController>().Survivors.
+                        Where(x => x.GetState() == SurvivorState.INITIAL).ToArray().FirstOrDefault());
+                }
+                else
+                {
+                    LevelController.Instance.DisplayDeathScreen();
+                }
                 break;
         }
     }
@@ -212,7 +223,7 @@ public class SurvivorController : GenCharacterController
         {
             foreach (SurvivorController survivorController in SurvivorGroup)
             {
-                    survivorController.RemoveFromSurvivorGroup(survivor, false);
+                survivorController.RemoveFromSurvivorGroup(survivor, false);
             }
         }
     }
@@ -239,11 +250,34 @@ public class SurvivorController : GenCharacterController
         }
     }
 
-    public void AddToHuntedList(ZombieController zombie)
+    public void AddToHuntedList(ZombieController zombie, bool recursiveCheck)
     {
         if (!HuntedBy.Contains(zombie))
         {
             HuntedBy.Add(zombie);
+        }
+
+        if (recursiveCheck)
+        {
+            foreach (SurvivorController survivorController in SurvivorGroup)
+            {
+                survivorController.AddToHuntedList(zombie, false);
+            }
+        }
+    }
+    public void RemoveFromHuntedList(ZombieController zombie, bool recursiveCheck)
+    {
+        if (HuntedBy.Contains(zombie))
+        {
+            HuntedBy.Remove(zombie);
+        }
+
+        if (recursiveCheck)
+        {
+            foreach (SurvivorController survivorController in SurvivorGroup)
+            {
+                survivorController.RemoveFromHuntedList(zombie, false);
+            }
         }
     }
 

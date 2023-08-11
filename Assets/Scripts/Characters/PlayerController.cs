@@ -15,12 +15,17 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private TextMeshProUGUI actionDescription;
 
+    private Transform[] endingPoints;
+    private int currentEndingPoint = 0;
+
     public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
 
     private void Awake()
     {
         inventoryController = GetComponent<InventoryController>();
         gameController = GetComponent<GameController>();
+        endingPoints = GameObject.Find("EndingFloor").
+            transform.Find("Points").transform.Cast<Transform>().ToArray();
     }
 
     private void Update()
@@ -58,10 +63,18 @@ public class PlayerController : MonoBehaviour
             {
                 actionDescription.text = "Atacar!";
             }
+            else if (hit.collider.CompareTag("Final"))
+            {
+                actionDescription.text = "Fugir!";
+            }
             else if (hit.collider.GetComponent<SurvivorController>() &&
                      hit.collider != PlayerCharacter.GetComponent<Collider>())
             {
                 actionDescription.text = "Trocar de personagem";
+            }
+            else
+            {
+                actionDescription.text = string.Empty;
             }
         }
     }
@@ -109,6 +122,18 @@ public class PlayerController : MonoBehaviour
                         WeaponBehaviour(PlayerCharacter, hit.collider.GetComponent<ZombieController>()));
                 }
             }
+            else if (hit.collider.CompareTag("Final"))
+            {
+                if (LevelController.Instance.MinSurvivorsRescued())
+                {
+                    StopAllCoroutines();
+                    StartCoroutine(HeadToExit());
+                }
+                else
+                {
+                    WarningText.Instance.SetWarningText("Resgate pelo menos 2 Sobreviventes para poder fugir!");
+                }
+            }
         }
     }
 
@@ -136,6 +161,8 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //Essa rotina leva o jogador a se esconder no local escolhido.
+    //Se eles estiverem mais Sobreviventes no grupo eles também se escondem.
     private IEnumerator HideHere(HidingSpot hidingSpot)
     {
         yield return null;
@@ -153,6 +180,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //Os X esconderijos mais próximos do jogador. Esse dado é usado pra esconder os sobreviventes.
     public List<HidingSpot> NearestHidingSpots(HidingSpot excludedHidingSpot, int quantity)
     {
         List<HidingSpot> allHidingSpots = gameController.HidingSpots.
@@ -201,6 +229,46 @@ public class PlayerController : MonoBehaviour
         item.GetComponent<Collider>().enabled = false;
     }
 
+    private IEnumerator HeadToExit()
+    {
+        StartCoroutine(WalkHere(endingPoints[currentEndingPoint].position));
+        yield return new WaitUntil(() => PlayerCharacter.Agent.hasPath);
+        yield return new WaitWhile(() => PlayerCharacter.Agent.hasPath);
+        yield return new WaitForEndOfFrame();
+
+        currentEndingPoint++;
+        if (currentEndingPoint >= endingPoints.Length)
+        {
+            currentEndingPoint = 0;
+        }
+        PlayerCharacter.SetState(SurvivorController.SurvivorState.FINAL);
+
+        SurvivorController survivor;
+        if (PlayerCharacter.SurvivorGroup.Count > 1)
+        {
+            List<SurvivorController> allButPlayer = playerCharacter.SurvivorGroup.
+                Where(survivor => survivor != playerCharacter).ToList();
+            survivor = allButPlayer[Random.Range(0, allButPlayer.Count)];
+            PlayerCharacter.RemoveFromSurvivorGroup(PlayerCharacter, true);
+            PlayerCharacter.SurvivorGroup.Clear();
+            SetPlayerCharacter(survivor);
+            StartCoroutine(HeadToExit());
+        }
+        else if (gameController.Survivors.Any(x => x.GetState() == SurvivorController.SurvivorState.INITIAL))
+        {
+            survivor = gameController.Survivors.
+                Where(x => x.GetState() == SurvivorController.SurvivorState.INITIAL)
+                .FirstOrDefault();
+            PlayerCharacter.RemoveFromSurvivorGroup(PlayerCharacter, true);
+            PlayerCharacter.SurvivorGroup.Clear();
+            SetPlayerCharacter(survivor);
+        }
+        else
+        {
+            LevelController.Instance.NextLevelSurvivorsRescued();
+        }
+    }
+
     private void LeftButtonClick()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -229,6 +297,11 @@ public class PlayerController : MonoBehaviour
         foreach (SurvivorController survivor in gameController.Survivors)
         {
             survivor.SetPlayerCharacter(newPlayer);
+        }
+
+        foreach (ZombieController zombie in gameController.Zombies)
+        {
+            zombie.SetPlayerCharacter(newPlayer);
         }
 
         PlayerCharacter = newPlayer;

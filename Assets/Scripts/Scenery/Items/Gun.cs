@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -57,10 +58,24 @@ public class Gun : Weapon
             {
                 WarningText.Instance.AddToWarningText("O tiro errou!");
             }
+            if (FindObjectOfType<GameController>().Zombies.Count > 1)
+            {
+                List<ZombieController> zombieControllers = FindObjectOfType<GameController>().Zombies.
+                    Where(x => x.GetState() != ZombieController.ZombieState.DEATH).ToList();
+                if (Random.value < 0.9f)
+                {
+                    foreach (ZombieController zombie in zombieControllers)
+                    {
+                        zombie.SetState(ZombieController.ZombieState.ATTACK);
+                    }
+                    WarningText.Instance.AddToWarningText("O tiro chamou atenção dos outros zumbis!");
+                }
+            }
         }
         else
         {
             WarningText.Instance.AddToWarningText("O alvo está fora de vista!");
+            yield break;
         }
 
         StartCoroutine(base.WeaponBehaviour(attacker, defender));
