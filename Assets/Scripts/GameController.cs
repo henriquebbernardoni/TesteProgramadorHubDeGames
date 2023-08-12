@@ -1,77 +1,71 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.AI.Navigation;
 using UnityEngine;
-using UnityEngine.AI;
+using Random = UnityEngine.Random;
 
 //Controlador geral do jogo aqui estão guardados diferentes dados da gameplay
 public class GameController : MonoBehaviour
 {
     //Prefabs de GameObjects a serem usados no set-up do nível.
-    [SerializeField] private GameObject hidingSpotPrefab;
+    [SerializeField] private GameObject[] sceneryPrefabs;
     [SerializeField] private GameObject survivorPrefab;
     [SerializeField] private GameObject zombiePrefab;
     [SerializeField] private GameObject supplyPrefab;
     [SerializeField] private GameObject medicinePrefab;
     [SerializeField] private GameObject woodPrefab;
     [SerializeField] private GameObject gunPrefab;
+    [SerializeField] private GameObject hidingSpotPrefab;
     [SerializeField] private GameObject obstaclePrefab;
-    [SerializeField] private GameObject[] sceneryPrefabs;
-
-    private GameObject startingFloor;
-    private Transform[] startingPoints;
-    private GameObject endingFloor;
-
-    private GameObject selectedScenery;
-    private Transform[] hidingSpotSpawnPoints;
-
-    private NavMeshSurface surface;
 
     //Listagem de GameObjects em cena que serão diretamente afetados.
-    [SerializeField] private List<SurvivorController> survivors = new();
-    [SerializeField] private List<ZombieController> zombies = new();
-    [SerializeField] private List<HidingSpot> hidingSpots = new();
-    [SerializeField] private List<Item> items = new();
-    [SerializeField] private List<GameObject> obstacles = new();
+    private NavMeshSurface surface;
+    private GameObject selectedScenery;
+    private Transform[] hidingSpotSpawnPoints;
+    private List<GameObject> obstacles;
+    public static List<SurvivorController> Survivors { get; private set; }
+    public static List<ZombieController> Zombies { get; private set; }
+    public static List<Item> Items { get; private set; }
+    public static List<HidingSpot> HidingSpots { get; private set; }
 
-    private CameraController cameraController;
-    private PlayerController playerController;
-    private InventoryController inventoryController;
-
-    private List<SurvivorController> survivorsOnScene = new();
-    private List<Item> itemsOnScene = new();
+    //Objetos relacionados às plataformas de inícoo e fim do jogo.
+    [SerializeField] private GameObject startingFloor;
+    [SerializeField] private GameObject endingFloor;
+    public static Transform[] StartingPoints { get; private set; }
+    public static Transform[] EndingPoints { get; private set; }
 
     private float mapSize = 50f;
 
-    public List<SurvivorController> Survivors { get => survivors; private set => survivors = value; }
-    public List<ZombieController> Zombies { get => zombies; private set => zombies = value; }
-    public List<HidingSpot> HidingSpots { get => hidingSpots; private set => hidingSpots = value; }
-    public List<Item> Items { get => items; private set => items = value; }
+    public static int SurvivorsAdded { get; private set; }
 
-    public int SurvivorsAdded { get; private set; }
+    //Nesse evento, funcões relacionadas ao set-up que vem de fora do script são inscritas.
+    public static event Action OnLevelSetUp;
 
     private void Awake()
     {
         surface = FindObjectOfType<NavMeshSurface>();
-        startingFloor = GameObject.Find("StartingFloor");
-        startingPoints = startingFloor.transform.Find("Points").transform.Cast<Transform>().ToArray();
-        endingFloor = GameObject.Find("EndingFloor");
 
-        cameraController = FindObjectOfType<CameraController>();
-        playerController = GetComponent<PlayerController>();
-        inventoryController = FindObjectOfType<InventoryController>();
+        StartingPoints = startingFloor.transform.Find("Points").transform.Cast<Transform>().ToArray();
+        EndingPoints = endingFloor.transform.Find("Points").transform.Cast<Transform>().ToArray();
+
+        obstacles = new List<GameObject>();
+        Survivors = new List<SurvivorController>();
+        Zombies = new List<ZombieController>();
+        Items = new List<Item>();
+        HidingSpots = new List<HidingSpot>();
     }
 
     private void Start()
     {
-        SetUpLevel(2, 2, 1, 1);
+        LevelLoad(3, 2, 1, 1);
     }
 
-    //FUNÇÕES E ROTINAS RELACIONADSS A SET-UP DE NÍVEL - INÍCIO
+    //FUNÇÕES E ROTINAS RELACIONADAS A SET-UP DE NÍVEL - INÍCIO
 
-    //Essa rotina controla o set-up do nível como um todo.
-    public void SetUpLevel(int survivorsAmount, int zombiesAmount, int woodAmount, int gunAmount)
+    //Nessa função tudo que precisa ser realizado para o setup do nível, na ordem correta.
+    public void LevelLoad(int survivorsAmount, int zombiesAmount, int woodAmount, int gunAmount)
     {
         SurvivorsAdded = survivorsAmount;
 
@@ -86,9 +80,11 @@ public class GameController : MonoBehaviour
         SetUpCollectables(woodAmount, gunAmount, survivorsAmount);
 
         SetUpZombies(zombiesAmount);
+
+        OnLevelSetUp?.Invoke();
     }
 
-    //Objetos que serão mantidos entre uma cena e outra são organizados aqui. 
+    //Objetos que serão mantidos entre uma cena e outra são guardados aqui. 
     //O que não se é organizado é deletado da cena.
     private void StoreObjectsOnScene()
     {
@@ -100,32 +96,18 @@ public class GameController : MonoBehaviour
     //Os sobreviventes que foram resgatados e conseguiram chegar ao final são guardados.
     private void StoreSurvivors()
     {
-        Survivors.Clear();
-        survivorsOnScene.Clear();
-        List<SurvivorController> previousSurvivors =
-            FindObjectsByType<SurvivorController>(FindObjectsSortMode.None).ToList();
-        previousSurvivors.RemoveAll(survivor => survivor.GetState() == SurvivorController.SurvivorState.RESCUE ||
-            survivor.GetState() == SurvivorController.SurvivorState.DEATH);
-        foreach (SurvivorController survivorController in previousSurvivors)
-        {
-            survivorsOnScene.Add(survivorController);
-            survivors.Add(survivorController);
-        }
+        Survivors = FindObjectsOfType<SurvivorController>()
+            .Where(survivor => survivor.GetState() == SurvivorController.SurvivorState.FINAL
+                            || survivor.GetState() == SurvivorController.SurvivorState.INITIAL)
+            .ToList();
     }
 
     //Os itens que estavam no inventário quando o jogador passa de fase são mantidos.
     private void StoreItems()
     {
-        itemsOnScene.Clear();
-        List<Item> previousItems =
-            FindObjectsByType<Item>(FindObjectsSortMode.None).ToList();
-        foreach (Item item in previousItems)
-        {
-            if (inventoryController.InventoryItems.Contains(item))
-            {
-                itemsOnScene.Add(item);
-            }
-        }
+        Items = FindObjectsOfType<Item>()
+            .Where(item => InventoryController.InventoryItems.Contains(item))
+            .ToList();
     }
 
     //Objetos que não se mantém na cena são excluído para novos sendo instanciados.
@@ -133,7 +115,7 @@ public class GameController : MonoBehaviour
     {
         if (selectedScenery)
         {
-            Destroy(selectedScenery.gameObject);
+            Destroy(selectedScenery);
         }
 
         foreach (HidingSpot hidingSpot in HidingSpots)
@@ -143,29 +125,28 @@ public class GameController : MonoBehaviour
 
         foreach (GameObject obstable in obstacles)
         {
-            Destroy(obstable.gameObject);
+            Destroy(obstable);
         }
 
-        SurvivorController[] survivorsTBD = Survivors.Where(x => x.GetState() !=
-            SurvivorController.SurvivorState.FINAL && x.GetState() !=
-            SurvivorController.SurvivorState.INITIAL).ToArray();
-        foreach (SurvivorController survivor in survivorsTBD)
+        foreach (SurvivorController survivor in FindObjectsOfType<SurvivorController>())
         {
-            Debug.Log(survivor.name);
-            Destroy(survivor.gameObject);
-        }
-
-        foreach (Item item in Items)
-        {
-            if (!inventoryController.InventoryItems.Contains(item))
+            if (!Survivors.Contains(survivor))
             {
-                Destroy(item.gameObject);
+                Destroy(survivor.gameObject);
             }
         }
 
         foreach (ZombieController zombie in Zombies)
         {
             Destroy(zombie.gameObject);
+        }
+
+        foreach (Item item in FindObjectsOfType<Item>())
+        {
+            if (!Items.Contains(item))
+            {
+                Destroy(item.gameObject);
+            }
         }
     }
 
@@ -178,7 +159,7 @@ public class GameController : MonoBehaviour
 
         //Os esconderijos são intanciados e tem suas posições randomizadas.
         HidingSpots.Clear();
-        for (int i = 0; i < (2f * (survivorsOnScene.Count + survivorsAmount)); i++)
+        for (int i = 0; i < (2 * (Survivors.Count + survivorsAmount)); i++)
         {
             HidingSpots.Add(Instantiate(hidingSpotPrefab).GetComponent<HidingSpot>());
         }
@@ -186,16 +167,15 @@ public class GameController : MonoBehaviour
 
         //Os obstáculos são intanciados e tem suas posições randomizadas.
         Vector3 point;
+        GameObject obstacle;
         obstacles.Clear();
+        float halfMapSize = (mapSize - 5) / 2;
         for (int i = 0; i < (survivorsAmount * 3); i++)
         {
-            obstacles.Add(Instantiate(obstaclePrefab));
-
-            point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-                obstacles[i].transform.position.y,
-                Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-
-            obstacles[i].transform.position = point;
+            obstacle = Instantiate(obstaclePrefab);
+            point = GetRandomPosition(halfMapSize, obstacle.transform.position.y);
+            obstacle.transform.position = point;
+            obstacles.Add(obstacle);
         }
 
         //Dada a natureza flexível das fases, é necessário realizar
@@ -208,52 +188,76 @@ public class GameController : MonoBehaviour
     //assegurando que eles não fiquem muito perto uns dos outros.
     private void RandomizeHidingSpots()
     {
-        hidingSpotSpawnPoints = 
-            selectedScenery.transform.Find("HidingPoints").transform.Cast<Transform>().ToArray();
+        hidingSpotSpawnPoints = selectedScenery
+            .transform
+            .Find("HidingPoints")
+            .GetComponentsInChildren<Transform>();
         int[] positions = GenerateRandomNumbers(HidingSpots.Count, hidingSpotSpawnPoints.Length);
 
         for (int i = 0; i < HidingSpots.Count; i++)
         {
-            HidingSpots[i].transform.SetPositionAndRotation
+            HidingSpots[i].transform
+                .SetPositionAndRotation
                 (hidingSpotSpawnPoints[positions[i]].position,
                 hidingSpotSpawnPoints[positions[i]].rotation);
         }
     }
 
-    //Os sobreviventes a serem resgatados (e os já resgatados em outras fases) são organizados.
-    private void SetUpRescued(int rescuedAmount)
+    //Essa função gera um número aleatório de ints a serem usadas para
+    //se garantir uma randomização boa no posicionamento de algo.
+    private static int[] GenerateRandomNumbers(int count, int max)
     {
-        Survivors.Clear();
-        //Os sobreviventos a serem resgatados são instanciados no mapa.
-        for (int i = 0; i < rescuedAmount; i++)
+        List<int> numbers = new List<int>();
+
+        for (int i = 0; i < count; i++)
         {
-            Survivors.Add(Instantiate(survivorPrefab).GetComponent<SurvivorController>());
+            int randomNumber = Random.Range(0, max);
+            while (numbers.Contains(randomNumber))
+            {
+                randomNumber = Random.Range(0, max);
+            }
+            numbers.Add(randomNumber);
         }
 
+        return numbers.ToArray();
+    }
+
+    //Os sobreviventes a serem resgatados (e os já resgatados em outras fases) são organizados.
+    private void SetUpRescued(int survivorsAmount)
+    {
         //Os sobreviventes já resgatados são colocados na área inicial.
-        //O primeiro sobrevivente resgatado é declarado Personagem Jogador.
-        //Os resgatados são então teleportado para a posição inicial.
-        for (int i = 0; i < survivorsOnScene.Count; i++)
+        for (int i = 0; i < Survivors.Count; i++)
         {
-            survivorsOnScene[i].SetState(SurvivorController.SurvivorState.INITIAL);
-            survivorsOnScene[i].Agent.Warp(startingPoints[i].position);
-            Survivors.Add(survivorsOnScene[i]);
+            Survivors[i].SetState(SurvivorController.SurvivorState.INITIAL);
+            Survivors[i].Agent.Warp(StartingPoints[i].position);
         }
-        SurvivorController initialPlayer = survivorsOnScene.FirstOrDefault();
-        playerController.SetPlayerCharacter(initialPlayer);
-        cameraController.SetCustomPosition(initialPlayer.transform.position);
+
+        //Os sobreviventos a serem resgatados são instanciados no mapa.
+        SurvivorController newSurvivor;
+        for (int i = 0; i < survivorsAmount; i++)
+        {
+            newSurvivor = Instantiate(survivorPrefab).GetComponent<SurvivorController>();
+            Survivors.Add(newSurvivor);
+        }
+
+        //O primeiro sobrevivente resgatado é declarado Personagem Jogador.
+        SurvivorController initialPlayer = Survivors.Find
+            (survivor => survivor.GetState() == SurvivorController.SurvivorState.INITIAL);
+        PlayerController.SetPlayerCharacter(initialPlayer);
+        CameraController.CenterCameraOnPlayer();
 
         //Os esconderijos onde os resgates inicialmente estão são randomizados
         //e tem suas vidas organizadas para o valor inicial.
-        RandomizeSurvivorsStart();
+        RandomizeRescuedStart();
     }
 
     //Essa função aleatoriza as posições iniciais dos Sobreviventes a serem resgatados.
-    private void RandomizeSurvivorsStart()
+    private void RandomizeRescuedStart()
     {
-        SurvivorController[] rescuees =
-            Survivors.Where(survivor => survivor.
-                GetState() != SurvivorController.SurvivorState.INITIAL).ToArray();
+        SurvivorController[] rescuees = Survivors
+            .Where(survivor => survivor
+            .GetState() != SurvivorController.SurvivorState.INITIAL)
+            .ToArray();
         int[] positions = GenerateRandomNumbers(rescuees.Length, HidingSpots.Count);
 
         for (int i = 0; i < rescuees.Length; i++)
@@ -264,131 +268,91 @@ public class GameController : MonoBehaviour
         }
     }
 
-    //Essa função gera um número aleatório de ints a serem usadas para
-    //se escolher onde os sobreviventes a serem resgatados irão se esconder.
-    //Isso visa gerar uma aleatorização maior de possíveis inícios.
-    private static int[] GenerateRandomNumbers(int count, int max)
-    {
-        List<int> numbers = new();
-
-        for (int i = 0; i < count; i++)
-        {
-            numbers.Add(Random.Range(0, max));
-            while (numbers.Where(x => x == numbers[i]).ToList().Count > 1)
-            {
-                numbers[i] = Random.Range(0, max);
-            }
-        }
-
-        return numbers.ToArray();
-    }
-
     //Os colecionáveis são adicionados ao mapa.
     private void SetUpCollectables(int woodAmount, int gunAmount, int survivorsAmount)
     {
         Vector3 point;
-        List<Item> itemsToBeAdded = new();
+        List<Item> itemsToBeAdded = new List<Item>();
+
+        int supplyCount = (Survivors.Count / 2) + 2;
+        float medicineAmount = survivorsAmount * 1.5f;
+        float halfMapSize = (mapSize - 5) / 2;
 
         //Os mantimentos são adicionados ao mapa.
         //A quantidade instanciada é o necessário para o time mais 2).
-        for (int i = 0; i < ((Survivors.Count / 2) + 2); i++)
+        for (int i = 0; i < supplyCount; i++)
         {
-            itemsToBeAdded.Add(Instantiate(supplyPrefab).GetComponent<Supply>());
+            Supply supply = Instantiate(supplyPrefab).GetComponent<Supply>();
+            itemsToBeAdded.Add(supply);
 
-            point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-                itemsToBeAdded[i].transform.position.y,
-                Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-
-            while (!NavMesh.SamplePosition(point, out NavMeshHit hit, 0.5f, NavMesh.AllAreas))
-            {
-                point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-                    itemsToBeAdded[i].transform.position.y,
-                    Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-            }
-
-            itemsToBeAdded[i].transform.position = point;
+            point = GetRandomPosition(halfMapSize, supply.transform.position.y);
+            supply.transform.position = point;
         }
-        Items.AddRange(itemsToBeAdded);
-        itemsToBeAdded.Clear();
+
 
         //Os remédios são adicionados ao mapa.
-        for (int i = 0; i < survivorsAmount * 1.5f; i++)
+        for (int i = 0; i < medicineAmount; i++)
         {
-            itemsToBeAdded.Add(Instantiate(medicinePrefab).GetComponent<Medicine>());
+            Medicine medicine = Instantiate(medicinePrefab).GetComponent<Medicine>();
+            itemsToBeAdded.Add(medicine);
 
-            point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-               itemsToBeAdded[i].transform.position.y,
-               Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-
-            while (!NavMesh.SamplePosition(point, out NavMeshHit hit, 0.5f, NavMesh.AllAreas))
-            {
-                point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-                    Items[i].transform.position.y,
-                    Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-            }
-
-            itemsToBeAdded[i].transform.position = point;
+            point = GetRandomPosition(halfMapSize, medicine.transform.position.y);
+            medicine.transform.position = point;
         }
-        Items.AddRange(itemsToBeAdded);
-        itemsToBeAdded.Clear();
 
         //As armas são finalmente adicionadas a fase.
         for (int i = 0; i < woodAmount; i++)
         {
-            itemsToBeAdded.Add(Instantiate(woodPrefab).GetComponent<PieceOfWood>());
+            PieceOfWood wood = Instantiate(woodPrefab).GetComponent<PieceOfWood>();
+            itemsToBeAdded.Add(wood);
 
-            point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-               itemsToBeAdded[i].transform.position.y,
-               Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-
-            while (!NavMesh.SamplePosition(point, out NavMeshHit hit, 0.5f, NavMesh.AllAreas))
-            {
-                point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-                    Items[i].transform.position.y,
-                    Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-            }
-
-            itemsToBeAdded[i].transform.position = point;
+            point = GetRandomPosition(halfMapSize, wood.transform.position.y);
+            wood.transform.position = point;
         }
-        Items.AddRange(itemsToBeAdded);
-        itemsToBeAdded.Clear();
+
         for (int i = 0; i < gunAmount; i++)
         {
-            itemsToBeAdded.Add(Instantiate(gunPrefab).GetComponent<Gun>());
+            Gun gun = Instantiate(gunPrefab).GetComponent<Gun>();
+            itemsToBeAdded.Add(gun);
 
-            point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-               itemsToBeAdded[i].transform.position.y,
-               Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-
-            while (!NavMesh.SamplePosition(point, out NavMeshHit hit, 0.5f, NavMesh.AllAreas))
-            {
-                point = new(Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2),
-                    Items[i].transform.position.y,
-                    Random.Range(-(mapSize - 5) / 2, (mapSize - 5) / 2));
-            }
-
-            itemsToBeAdded[i].transform.position = point;
+            point = GetRandomPosition(halfMapSize, gun.transform.position.y);
+            gun.transform.position = point;
         }
+
         Items.AddRange(itemsToBeAdded);
-        itemsToBeAdded.Clear();
+    }
+
+    //Retorna uma posição aleatória no mapa para um objeto ser posto.
+    private Vector3 GetRandomPosition(float halfMapSize, float yPosition)
+    {
+        Vector3 point;
+
+        point = new Vector3
+                (Random.Range(-halfMapSize, halfMapSize),
+                yPosition,
+                Random.Range(-halfMapSize, halfMapSize));
+
+        return point;
     }
 
     //Os zumbis são instanciados e suas posições iniciais randomizadas.
     private void SetUpZombies(int zombiesAmount)
     {
-        Zombies.Clear();
+        List<ZombieController> newZombies = new List<ZombieController>();
+
         for (int i = 0; i < zombiesAmount; i++)
         {
-            Zombies.Add(Instantiate(zombiePrefab).GetComponent<ZombieController>());
+            newZombies.Add(Instantiate(zombiePrefab).GetComponent<ZombieController>());
         }
 
-        foreach (ZombieController zombieController in Zombies)
+        Zombies.Clear();
+        Zombies.AddRange(newZombies);
+
+        foreach (ZombieController zombieController in newZombies)
         {
-            zombieController.FindWanderPoints();
             zombieController.SetState(ZombieController.ZombieState.WANDER);
-            zombieController.SetPlayerCharacter(playerController.PlayerCharacter);
         }
     }
 
-    //FUNÇÕES E ROTINAS RELACIONADSS A SET-UP DE NÍVEL - FIM
+    //FUNÇÕES E ROTINAS RELACIONADAS A SET-UP DE NÍVEL - FIM
 }

@@ -7,50 +7,28 @@ using UnityEngine.AI;
 public abstract class GenCharacterController : MonoBehaviour
 {
     //Atributos relacionados a vida do personagem.
+    [SerializeField] private TextMeshPro healthText;
     [SerializeField] private int maxHealth;
     private int currentHealth;
-    private TextMeshPro healthText;
-    private Quaternion previousHTextRotation;
 
+    //Variáveis relacionadas a recargas de ataque.
     [SerializeField] protected float rechargeTime;
-
-    private Transform _camera;
-
-    [SerializeField] private SurvivorController playerCharacter;
-
-    public NavMeshAgent Agent { get; private set; }
     public bool IsRecharging { get; private set; }
-    public SurvivorController PlayerCharacter { get => playerCharacter; protected set => playerCharacter = value; }
+
+    [SerializeField] private NavMeshAgent _agent;
+    public NavMeshAgent Agent { get => _agent; }
 
     protected virtual void Awake()
     {
-        healthText = GetComponentInChildren<TextMeshPro>();
-        _camera = Camera.main.transform;
-        Agent = GetComponent<NavMeshAgent>();
         ModifyHealth(maxHealth);
     }
 
-    private void LateUpdate()
+    private void Update()
     {
-        PointTextToCamera();
     }
 
-    //Caso a rotação do text mude entre um frame e outro,
-    //a rotação irá modificar para comportar a alteração.
-    private void PointTextToCamera()
-    {
-        if (previousHTextRotation != healthText.transform.rotation)
-        {
-            previousHTextRotation = _camera.rotation;
-            healthText.transform.rotation = previousHTextRotation;
-        }
-    }
-
-    private void UpdateHealthText()
-    {
-        healthText.text = currentHealth.ToString();
-    }
-
+    //Quando esse personagem atacar, ele terá de esperar
+    //o tempo de recarga para atacar novamente.
     public IEnumerator RechargeAttack()
     {
         if (IsRecharging)
@@ -63,12 +41,15 @@ public abstract class GenCharacterController : MonoBehaviour
         IsRecharging = false;
     }
 
+    //Use essa função para alterar a saúde do personagem,
+    //seja para aumentar ou diminuir.
     public void ModifyHealth(int amount)
     {
         currentHealth += amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
 
-        UpdateHealthText();
+        healthText.text = currentHealth.ToString();
+
         if (currentHealth == 0)
         {
             DeathBehaviour();
@@ -76,6 +57,7 @@ public abstract class GenCharacterController : MonoBehaviour
     }
 
     //O comportamento que é ativado quando esse personagem morre.
+    //Deixe em branco, esse comportamento só é modificado por classes herdeiras.
     protected virtual void DeathBehaviour()
     {
 

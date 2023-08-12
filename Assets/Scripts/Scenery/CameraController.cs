@@ -5,7 +5,9 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    private Camera mainCamera;
+    private static GameObject _gameObject;
+
+    [SerializeField] private Camera mainCamera;
     private float minZoomNumber = 3f;
     private float maxZoomNumber = 10f;
 
@@ -13,9 +15,19 @@ public class CameraController : MonoBehaviour
     private Vector3 previousMousePosition;
     private Vector3 nextCameraPosition;
 
+    private void OnEnable()
+    {
+        PlayerController.OnPlayerCharacterChanged += (_) => CenterCameraOnPlayer();
+    }
+
+    private void OnDisable()
+    {
+        PlayerController.OnPlayerCharacterChanged -= (_) => CenterCameraOnPlayer();
+    }
+
     private void Awake()
     {
-        mainCamera = GetComponentInChildren<Camera>();
+        _gameObject = gameObject;
     }
 
     private void Update()
@@ -43,6 +55,11 @@ public class CameraController : MonoBehaviour
         }
     }
 
+    public static void CenterCameraOnPlayer()
+    {
+        _gameObject.transform.position = PlayerController.PC.transform.position;
+    }
+
     private Vector3 GetMouseWorldPosition()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -50,11 +67,6 @@ public class CameraController : MonoBehaviour
         Physics.Raycast(ray, out RaycastHit hit);
         Vector3 newPosition = new(hit.point.x, 0f, hit.point.z);
         return newPosition;
-    }
-
-    public void SetCustomPosition(Vector3 position)
-    {
-        transform.position = position;
     }
 
     private void CameraZoom()

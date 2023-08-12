@@ -11,7 +11,7 @@ public class HidingSpot : MonoBehaviour
     //Este é o ponto em que o Sobrevivente ficará para se esconder.
     [SerializeField] private Transform standingPoint;
 
-    [SerializeField] private SurvivorController survivorHere;
+    private SurvivorController survivorHere;
 
     public IEnumerator EnterHidingSpot(SurvivorController survivorController)
     {
@@ -28,10 +28,14 @@ public class HidingSpot : MonoBehaviour
 
         survivorController.StopAllCoroutines();
         survivorController.SetSurvivorDestination(standingPoint.position);
+        yield return StartCoroutine(WaitForAgentPath(survivorController));
+        SetHidingSpot(survivorController);
+    }
+
+    private IEnumerator WaitForAgentPath(SurvivorController survivorController)
+    {
         yield return new WaitUntil(() => survivorController.Agent.hasPath);
         yield return new WaitWhile(() => survivorController.Agent.hasPath);
-        yield return new WaitForEndOfFrame();
-        SetHidingSpot(survivorController);
     }
 
     public void ExitHidingSpot()
@@ -40,15 +44,18 @@ public class HidingSpot : MonoBehaviour
         survivorHere.SetHidingSpot(null);
         survivorHere = null;
 
-        if (wasHere.PlayerCharacter == wasHere)
+        if (PlayerController.PC == wasHere)
         {
             wasHere.SetState(SurvivorState.WANDER);
 
-            List<SurvivorController> allButPlayer = wasHere.SurvivorGroup.
-                Where(survivor => survivor != wasHere && survivor.GetHidingSpot()).ToList();
-            for (int i = 0; i < allButPlayer.Count; i++)
-            {                
-                allButPlayer[i].GetHidingSpot().ExitHidingSpot();
+            List<SurvivorController> allButPlayer =
+                wasHere.SurvivorGroup
+                .Except(new List<SurvivorController> { wasHere })
+                .Where(survivor => survivor.GetHidingSpot()).ToList();
+
+            foreach (SurvivorController survivor in allButPlayer)
+            {
+                survivor.GetHidingSpot().ExitHidingSpot();
             }
         }
         else
@@ -57,9 +64,10 @@ public class HidingSpot : MonoBehaviour
         }
     }
 
+
     public bool IsSurvivorHere()
     {
-        return survivorHere;
+        return survivorHere!= null;
     }
 
     public void SetHidingSpot(SurvivorController survivorController)
@@ -72,6 +80,6 @@ public class HidingSpot : MonoBehaviour
 
         survivorHere = survivorController;
         survivorHere.SetHidingSpot(this);
-        survivorController.SetState(SurvivorController.SurvivorState.HIDE);
+        survivorController.SetState(SurvivorState.HIDE);
     }
 }

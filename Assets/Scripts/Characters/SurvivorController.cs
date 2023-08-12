@@ -11,81 +11,96 @@ public class SurvivorController : GenCharacterController
     public enum SurvivorState { INITIAL, WANDER, RESCUE, FOLLOW, HIDE, FINAL, DEATH }
     [SerializeField] private SurvivorState currentState;
 
+    //Esses materiais mostram qual o jogador atual.
+    [SerializeField] private Renderer bodyRenderer;
     [SerializeField] private Material survivorMaterial;
     [SerializeField] private Material playerMaterial;
 
-    //Essa foi uma maneira que eu encontrei de mostrar que um Sobrevivente está escondido
-    //Caso esse fosse um projeto mais avançado, eu implementaria uma solução melhor
+    //Objetos relacionados a esconderijos.
+    //O rosto do Sobrevivente muda de cor se estiver escondido.
     [SerializeField] private Renderer hiddenRenderer;
     [SerializeField] private Material hiddenMaterial;
     [SerializeField] private Material nonHiddenMaterial;
-    [SerializeField] private HidingSpot currentHidingSpot;
+    public HidingSpot CurrentHidingSpot { get; private set; }
 
+    //A arma que o jogador está segurando agora.
     private Weapon selectedWeapon;
 
-    [SerializeField] private List<SurvivorController> survivorGroup;
-
-    //O grupo refere às pessoas que o jogador já encontrou, segue ele, e podem
-    //virar personagens jogáveis também.
-    public List<SurvivorController> SurvivorGroup { get => survivorGroup; private set => survivorGroup = value; }
-
-    //Os zumbis que estão perseguindo o sobrevivente e seu grupo.
+    //Os zumbis que estão perseguindo o jogador e seu grupo.
     public List<ZombieController> HuntedBy { get; private set; }
+
+    //O grupo refere às pessoas que o jogador já encontrou, segue ele,
+    //e podemvirar personagens jogáveis também.
+    public List<SurvivorController> SurvivorGroup { get; private set; }
+
+    private void OnEnable()
+    {
+        PlayerController.OnPlayerCharacterChanged += SetPlayerCharacter;
+    }
+
+    private void OnDisable()
+    {
+        PlayerController.OnPlayerCharacterChanged -= SetPlayerCharacter;
+    }
 
     protected override void Awake()
     {
         base.Awake();
-        SurvivorGroup = new();
+
+        SurvivorGroup = new List<SurvivorController>();
         if (!SurvivorGroup.Contains(this))
         {
             SurvivorGroup.Add(this);
         }
 
-        HuntedBy = new();
+        HuntedBy = new List<ZombieController>();
     }
 
-    //Use esses códigos para alterar e retornar o estado atual do Sobrevivente.
+    //Use essas funções para alterar e retornar o estado atual do Sobrevivente.
     public void SetState(SurvivorState newState)
     {
         if (currentState == newState) return;
-
         StopAllCoroutines();
         FullStop();
         currentState = newState;
 
         switch (newState)
         {
+            case SurvivorState.INITIAL:
+                break;
             case SurvivorState.WANDER:
                 hiddenRenderer.material = nonHiddenMaterial;
                 Agent.speed = 5f;
-                Agent.avoidancePriority = 40;
                 break;
             case SurvivorState.RESCUE:
                 hiddenRenderer.material = hiddenMaterial;
                 StartCoroutine(InitialRoutine());
                 break;
-            case SurvivorState.HIDE:
-                hiddenRenderer.material = hiddenMaterial;
-                break;
             case SurvivorState.FOLLOW:
                 hiddenRenderer.material = nonHiddenMaterial;
                 Agent.speed = 4f;
-                Agent.avoidancePriority = 50;
                 StopAllCoroutines();
                 StartCoroutine(FollowRoutine());
                 break;
+            case SurvivorState.HIDE:
+                hiddenRenderer.material = hiddenMaterial;
+                break;
+            case SurvivorState.FINAL:
+                break;
             case SurvivorState.DEATH:
                 hiddenRenderer.material = nonHiddenMaterial;
-                if (FindObjectOfType<GameController>().
-                    Survivors.Any(x => x.GetState() == SurvivorState.INITIAL))
+                if (PlayerController.PC == this)
                 {
-                    FindObjectOfType<PlayerController>().SetPlayerCharacter(
-                        FindObjectOfType<GameController>().Survivors.
-                        Where(x => x.GetState() == SurvivorState.INITIAL).ToArray().FirstOrDefault());
-                }
-                else
-                {
-                    LevelController.Instance.DisplayDeathScreen();
+                    SurvivorController initialSurvivor = GameController.Survivors
+                    .FirstOrDefault(x => x.GetState() == SurvivorState.INITIAL);
+                    if (initialSurvivor != null)
+                    {
+                        PlayerController.SetPlayerCharacter(initialSurvivor);
+                    }
+                    else
+                    {
+                        LevelController.Instance.DisplayDeathScreen();
+                    }
                 }
                 break;
         }
@@ -104,38 +119,11 @@ public class SurvivorController : GenCharacterController
             SetState(SurvivorState.WANDER);
         }
 
-        if (currentHidingSpot)
+        if (CurrentHidingSpot)
         {
-            currentHidingSpot.ExitHidingSpot();
+            CurrentHidingSpot.ExitHidingSpot();
         }
         Agent.SetDestination(destination);
-    }
-
-    //Essa função detecta algum ponto de esconderijo próximo ao Sobrevivente.
-    public HidingSpot DetectNearbyHidingSpot()
-    {
-        Collider[] colliders = Physics.OverlapSphere(transform.position, 0.75f);
-
-        return colliders.FirstOrDefault(collider => collider.GetComponent<HidingSpot>())?.GetComponent<HidingSpot>();
-    }
-
-    public void SetHidingSpot(HidingSpot newHidingSpot)
-    {
-        currentHidingSpot = newHidingSpot;
-    }
-    public HidingSpot GetHidingSpot()
-    {
-        return currentHidingSpot;
-    }
-
-    //Use esses códigos para alterar e retornar a arma atual do Sobrevivente.
-    public void SetWeapon(Weapon weapon)
-    {
-        selectedWeapon = weapon;
-    }
-    public Weapon GetWeapon()
-    {
-        return selectedWeapon;
     }
 
     //Essa rotina é usada por sobreviventes não resgatados.
@@ -143,6 +131,8 @@ public class SurvivorController : GenCharacterController
     //A partir daí o sobrevivente começa a seguir o jogador.
     private IEnumerator InitialRoutine()
     {
+        yield return null;
+
         Vector3 origin;
         Vector3 destination;
         Vector3 direction;
@@ -154,14 +144,15 @@ public class SurvivorController : GenCharacterController
         while (!isDetecting)
         {
             origin = new Vector3(transform.position.x, 1, transform.position.z);
-            destination = new Vector3(PlayerCharacter.transform.position.x, 1, PlayerCharacter.transform.position.z);
+            destination = new Vector3
+                (PlayerController.PC.transform.position.x,
+                1,
+                PlayerController.PC.transform.position.z);
             direction = destination - origin;
             hits = Physics.RaycastAll(origin, direction, 5f);
 
             wallHit = false;
             playerHit = false;
-
-            Debug.DrawRay(origin, direction.normalized * 5f, Color.red);
 
             foreach (RaycastHit hit in hits)
             {
@@ -173,7 +164,7 @@ public class SurvivorController : GenCharacterController
             }
             foreach (RaycastHit hit in hits)
             {
-                if (hit.collider == PlayerCharacter.GetComponent<Collider>())
+                if (hit.collider == PlayerController.PC.GetComponent<Collider>())
                 {
                     playerHit = true;
                     break;
@@ -184,48 +175,32 @@ public class SurvivorController : GenCharacterController
                 isDetecting = true;
             }
 
-            yield return new WaitForEndOfFrame();
+            yield return null;
         }
 
-        LevelController.Instance.AddToRescuedSurvivors();
-        PlayerCharacter.AddToSurvivorGroup(this, true);
-        currentHidingSpot.ExitHidingSpot();
+        //LevelController.Instance.AddToRescuedSurvivors();
+        PlayerController.PC.AddToSurvivorGroup(this, true);
+        CurrentHidingSpot.ExitHidingSpot();
     }
 
-    //Essas funções adiciona/remove um novo sobrevivente ao grupo, assegurando recursivamente
-    //que este seja adicionado/removido também ao grupo de outros grupos.
-    public void AddToSurvivorGroup(SurvivorController survivor, bool recursiveCheck)
+    //Essa função detecta algum ponto de esconderijo próximo ao Sobrevivente.
+    public HidingSpot DetectNearbyHidingSpot()
     {
-        if (!SurvivorGroup.Contains(survivor))
-        {
-            SurvivorGroup.Add(survivor);
-        }
+        Collider[] colliders = Physics.OverlapSphere(transform.position, 0.75f);
 
-        if (recursiveCheck)
-        {
-            foreach (SurvivorController survivorController in SurvivorGroup)
-            {
-                foreach (SurvivorController controller in SurvivorGroup)
-                {
-                    survivorController.AddToSurvivorGroup(controller, false);
-                }
-            }
-        }
+        return colliders.FirstOrDefault
+            (collider => collider.GetComponent<HidingSpot>())?
+            .GetComponent<HidingSpot>();
     }
-    public void RemoveFromSurvivorGroup(SurvivorController survivor, bool recursiveCheck)
-    {
-        if (SurvivorGroup.Contains(survivor))
-        {
-            SurvivorGroup.Remove(survivor);
-        }
 
-        if (recursiveCheck)
-        {
-            foreach (SurvivorController survivorController in SurvivorGroup)
-            {
-                survivorController.RemoveFromSurvivorGroup(survivor, false);
-            }
-        }
+    //Use essas funções para alterar e retornar o esconderijo do Sobrevivente.
+    public void SetHidingSpot(HidingSpot newHidingSpot)
+    {
+        CurrentHidingSpot = newHidingSpot;
+    }
+    public HidingSpot GetHidingSpot()
+    {
+        return CurrentHidingSpot;
     }
 
     //Esta rotina guia o sobrevivente seguindo o jogador, fazendo ele parar de se mexer
@@ -234,9 +209,10 @@ public class SurvivorController : GenCharacterController
     {
         while (true)
         {
-            if (Vector3.Distance(transform.position, PlayerCharacter.transform.position) > 3.5f)
+            if (Vector3.Distance(transform.position, 
+                PlayerController.PC.transform.position) > 3.5f)
             {
-                SetSurvivorDestination(PlayerCharacter.transform.position);
+                SetSurvivorDestination(PlayerController.PC.transform.position);
             }
             else
             {
@@ -250,6 +226,18 @@ public class SurvivorController : GenCharacterController
         }
     }
 
+    //Use esses códigos para alterar e retornar a arma atual do Sobrevivente.
+    public void SetWeapon(Weapon weapon)
+    {
+        selectedWeapon = weapon;
+    }
+    public Weapon GetWeapon()
+    {
+        return selectedWeapon;
+    }
+
+    //Use essas funções para modificar a lista de zumbis
+    //seguindo o jogador e outros sobreviventes.
     public void AddToHuntedList(ZombieController zombie, bool recursiveCheck)
     {
         if (!HuntedBy.Contains(zombie))
@@ -281,6 +269,46 @@ public class SurvivorController : GenCharacterController
         }
     }
 
+    //Essas funções adiciona/remove um novo sobrevivente ao grupo, assegurando recursivamente
+    //que este seja adicionado/removido também ao grupo de outros grupos.
+    public void AddToSurvivorGroup(SurvivorController survivor, bool recursiveCheck)
+    {
+        if (!SurvivorGroup.Contains(survivor))
+        {
+            SurvivorGroup.Add(survivor);
+        }
+
+        if (recursiveCheck)
+        {
+            foreach (SurvivorController survivorController in SurvivorGroup)
+            {
+                foreach (SurvivorController controller in SurvivorGroup)
+                {
+                    survivorController.AddToSurvivorGroup(controller, false);
+                }
+            }
+        }
+
+        SupplyCounter.Instance.UpdateText();
+    }
+    public void RemoveFromSurvivorGroup(SurvivorController survivor, bool recursiveCheck)
+    {
+        if (SurvivorGroup.Contains(survivor))
+        {
+            SurvivorGroup.Remove(survivor);
+        }
+
+        if (recursiveCheck)
+        {
+            foreach (SurvivorController survivorController in SurvivorGroup)
+            {
+                survivorController.RemoveFromSurvivorGroup(survivor, false);
+            }
+        }
+
+        SupplyCounter.Instance.UpdateText();
+    }
+
     protected override void DeathBehaviour()
     {
         WarningText.Instance.SetWarningText("Um sobrevivente morreu!");
@@ -291,12 +319,11 @@ public class SurvivorController : GenCharacterController
     //Essa função assegura que a mudança de estado e material jogador ocorra de forma correta.
     public void SetPlayerCharacter(SurvivorController newPlayer)
     {
-        PlayerCharacter = newPlayer;
         SurvivorState currentState = GetState();
 
-        if (PlayerCharacter == this)
+        if (newPlayer == this)
         {
-            GetComponentInChildren<Renderer>().material = playerMaterial;
+            bodyRenderer.material = playerMaterial;
             if (currentState == SurvivorState.FOLLOW)
             {
                 SetState(SurvivorState.WANDER);
@@ -304,7 +331,7 @@ public class SurvivorController : GenCharacterController
         }
         else
         {
-            GetComponentInChildren<Renderer>().material = survivorMaterial;
+            bodyRenderer.material = survivorMaterial;
             if (currentState == SurvivorState.WANDER)
             {
                 SetState(SurvivorState.FOLLOW);

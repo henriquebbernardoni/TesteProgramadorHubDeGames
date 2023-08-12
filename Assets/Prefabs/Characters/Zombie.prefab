@@ -95,6 +95,7 @@ GameObject:
   - component: {fileID: 1621087188614350252}
   - component: {fileID: 3101385598786597378}
   - component: {fileID: 2521279676396512805}
+  - component: {fileID: 2445334095373646069}
   m_Layer: 0
   m_Name: Text (TMP)
   m_TagString: Untagged
@@ -258,6 +259,18 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 3101385598786597378}
   m_maskType: 0
+--- !u!114 &2445334095373646069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1013378266273981843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 228c19617dc76404ea18471faaa45add, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2452770713681494794
 GameObject:
   m_ObjectHideFlags: 0
@@ -434,7 +447,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98435bcc44153ec49948b2720bb1c758, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  healthText: {fileID: 2521279676396512805}
   maxHealth: 2
   rechargeTime: 2
+  _agent: {fileID: 2475931217751599573}
   currentState: 3
   face: {fileID: 6401073833452531013}

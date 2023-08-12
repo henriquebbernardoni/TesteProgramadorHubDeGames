@@ -9,18 +9,20 @@ public class LevelController : MonoBehaviour
 {
     public static LevelController Instance { get; private set; }
 
-    private GameController gameController;
-
     [SerializeField] private GameObject deathScreen;
     [SerializeField] private GameObject levelScreen;
     [SerializeField] private GameObject victoryScreen;
+
+    //Dados a serem mostrados na pontuação
+    private int collectedItems;
+    private int rescuedSurvivors;
+    private int killedZombies;
 
     private int currentLevel = 0;
 
     private void Awake()
     {
         Instance = this;
-        gameController = FindObjectOfType<GameController>();
     }
 
     private void Start()
@@ -29,11 +31,6 @@ public class LevelController : MonoBehaviour
         levelScreen.SetActive(false);
         victoryScreen.SetActive(false);
     }
-
-    //Dados a serem mostrados na pontuação
-    private int collectedItems;
-    private int rescuedSurvivors;
-    private int killedZombies;
 
     //Funções usadas para alterar os valores da pontuação
     public void AddToCollectedItems()
@@ -49,7 +46,122 @@ public class LevelController : MonoBehaviour
         killedZombies++;
     }
 
-    //Funções usadas para mostras as telas de mudança de final
+    public bool MinSurvivorsRescued()
+    {
+        return GameController.Survivors.Where(x => x.GetState() ==
+            SurvivorController.SurvivorState.RESCUE).ToArray().Length <=
+            GameController.SurvivorsAdded - 2;
+    }
+    public void NextLevelSurvivorsRescued()
+    {
+        SurvivorController[] survivorsRescued = GameController.Survivors.
+            Where(x => (x.GetState() != SurvivorController.SurvivorState.DEATH
+            || x.GetState() != SurvivorController.SurvivorState.RESCUE)
+            && x != PlayerController.PC).ToArray();
+        Supply supply = InventoryController.InventoryItems.OfType<Supply>().FirstOrDefault();
+
+        levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text =
+            "Você conseguiu escapar com os sobreviventes e itens que conseguiu coletar.";
+        if (supply != null)
+        {
+            if (supply.Quantity < survivorsRescued.Length / 2)
+            {
+                levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text +=
+                    "\nInfelizmente, você não tem mantimentos o suficiente para suprir suas necessidades.";
+                if (Random.value <= 0.5f)
+                {
+                    for (int i = 0; i < (survivorsRescued.Length - 2 * supply.Quantity); i++)
+                    {
+                        survivorsRescued.FirstOrDefault(x => x.GetState() != SurvivorController.SurvivorState.DEATH)
+                            .SetState(SurvivorController.SurvivorState.DEATH);
+                        levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text +=
+                        "\nSobreviventes pereceram.";
+                    }
+                }
+                else
+                {
+                    levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text +=
+                    "\nVocê tem sorte que ninguém morreu...";
+                }
+            }
+        }
+        else
+        {
+            levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text +=
+                "\nInfelizmente, você não tem mantimentos o suficiente para suprir suas necessidades.";
+            if (Random.value <= 0.5f)
+            {
+                for (int i = 0; i < (survivorsRescued.Length - 2 * supply.Quantity); i++)
+                {
+                    survivorsRescued.FirstOrDefault(x => x.GetState() != SurvivorController.SurvivorState.DEATH)
+                        .SetState(SurvivorController.SurvivorState.DEATH);
+                    levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text +=
+                    "\nSobreviventes pereceram.";
+                }
+            }
+            else
+            {
+                levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text +=
+                "\nVocê tem sorte que ninguém morreu...";
+            }
+        }
+
+        survivorsRescued = GameController.Survivors.
+            Where(x => (x.GetState() != SurvivorController.SurvivorState.DEATH
+            || x.GetState() != SurvivorController.SurvivorState.RESCUE)
+            && x != PlayerController.PC).ToArray();
+        for (int i = 0; i < survivorsRescued.Length / 2; i++)
+        {
+            InventoryController.RemoveItemFromInventory(supply);
+        }
+
+        levelScreen.SetActive(true);
+    }
+
+    //Com todos os zumbis mortos, todos os sobreviventes serão automaticamente resgatados
+    //e todos os itens coletados.
+    public bool AllZombiesDead()
+    {
+        return GameController.Zombies.All
+            (x => x.GetState() == ZombieController.ZombieState.DEATH);
+    }
+    public void NextLevelZombiesDead()
+    {
+        foreach (Item item in GameController.Items)
+        {
+            if (!InventoryController.InventoryItems.Contains(item))
+            {
+                if (item.isActiveAndEnabled)
+                {
+                    AddToCollectedItems();
+                    InventoryController.AddItemToInventory(item);
+                }
+            }
+        }
+
+        foreach (SurvivorController survivor in GameController.Survivors)
+        {
+            if (survivor.GetState() != SurvivorController.SurvivorState.RESCUE ||
+                survivor.GetState() != SurvivorController.SurvivorState.DEATH)
+            {
+                AddToRescuedSurvivors();
+                PlayerController.PC.AddToSurvivorGroup(survivor, true);
+                if (survivor.CurrentHidingSpot)
+                {
+                    survivor.CurrentHidingSpot.ExitHidingSpot();
+                }
+                survivor.SetState(SurvivorController.SurvivorState.FINAL);
+            }
+        }
+
+        levelScreen.transform.Find("ResultsText").GetComponent<TextMeshProUGUI>().text =
+            "Com todos os zumbis mortos, você consegue resgatar os sobreviventes " +
+            "e coletar os itens sem se preocupar.";
+
+        levelScreen.SetActive(true);
+    }
+
+    //Funções usadas para mostrar as telas de mudança de final
     public void DisplayDeathScreen()
     {
         deathScreen.transform.Find("ScoreText").GetComponent<TextMeshProUGUI>().text =
@@ -66,29 +178,27 @@ public class LevelController : MonoBehaviour
             "Zumbis mortos: " + killedZombies;
         victoryScreen.SetActive(true);
     }
-    public void DisplayNextLevelScreen()
-    {
 
-    }
 
+    //Funções relacionadas a transição de fases
     public void NextLevel()
     {
+        levelScreen.SetActive(false);
+
         currentLevel++;
         if (currentLevel == 1)
         {
-            gameController.SetUpLevel(6, 4, 3, 1);
+            FindObjectOfType<GameController>().LevelLoad(6, 4, 3, 1);
         }
         else if (currentLevel == 2)
         {
-            gameController.SetUpLevel(9, 6, 3, 1);
+            FindObjectOfType<GameController>().LevelLoad(6, 6, 3, 1);
         }
         else if (currentLevel == 3)
         {
             DisplayVictoryScreen();
         }
     }
-
-    //Funções relacionadas a transição de fases
     public void RestartGame()
     {
         collectedItems = 0;
@@ -99,26 +209,5 @@ public class LevelController : MonoBehaviour
     public void QuitGame()
     {
         Application.Quit();
-    }
-
-    public bool AllZombiesDead()
-    {
-        return gameController.Zombies.All
-            (x => x.GetState() == ZombieController.ZombieState.DEATH);
-    }
-    public void NextLevelZombiesDead()
-    {
-
-    }
-
-    public bool MinSurvivorsRescued()
-    {
-        return gameController.Survivors.Where(x => x.GetState() == 
-            SurvivorController.SurvivorState.RESCUE).ToArray().Length <=
-            gameController.SurvivorsAdded - 2;
-    }
-    public void NextLevelSurvivorsRescued()
-    {
-
     }
 }

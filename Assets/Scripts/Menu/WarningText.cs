@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -7,12 +6,13 @@ public class WarningText : MonoBehaviour
 {
     public static WarningText Instance { get; private set; }
 
-    private TextMeshProUGUI warningText;
+    [SerializeField] private TextMeshProUGUI warningText;
+
+    private Coroutine warningCoroutine;
 
     private void Awake()
     {
         Instance = this;
-        warningText = GetComponent<TextMeshProUGUI>();
     }
 
     private void Start()
@@ -22,13 +22,16 @@ public class WarningText : MonoBehaviour
 
     public void SetWarningText(string text)
     {
-        StopAllCoroutines();
-        StartCoroutine(WarningTextRoutine(text));
+        if (warningCoroutine != null)
+        {
+            StopCoroutine(warningCoroutine);
+        }
+        warningCoroutine = StartCoroutine(WarningTextRoutine(text));
     }
 
     public void AddToWarningText(string text)
     {
-        if (warningText.text == string.Empty)
+        if (string.IsNullOrEmpty(warningText.text))
         {
             SetWarningText(text);
         }

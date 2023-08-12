@@ -7,17 +7,24 @@ using UnityEngine.UI;
 
 public class InventoryController : MonoBehaviour
 {
-    private List<Item> inventoryItems = new();
+    public static List<Item> InventoryItems { get; private set; }
 
-    [SerializeField] private InventoryPanelButton[] inventoryButtons;
-    [SerializeField] private InventoryPanelButton weaponSelectButton;
     [SerializeField] private GameObject inventoryPanel;
+    private static GameObject _inventoryPanel;
+    [SerializeField] private InventoryPanelButton[] inventoryButtons;
+    private static InventoryPanelButton[] _inventoryButtons;
+    [SerializeField] private InventoryPanelButton weaponSelectButton;
+    private static InventoryPanelButton _weaponSelectButton;
+    public static InventoryPanelButton WeaponSelectButton
+        { get => _weaponSelectButton; private set => _weaponSelectButton = value; }
 
-    [SerializeField] private SurvivorController playerCharacter;
-
-    public InventoryPanelButton WeaponSelectButton { get => weaponSelectButton; private set => weaponSelectButton = value; }
-    public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
-    public List<Item> InventoryItems { get => inventoryItems; private set => inventoryItems = value; }
+    private void Awake()
+    {
+        InventoryItems = new List<Item>();
+        _inventoryPanel = inventoryPanel;
+        _inventoryButtons = inventoryButtons;
+        _weaponSelectButton = weaponSelectButton;
+    }
 
     private void Start()
     {
@@ -33,7 +40,7 @@ public class InventoryController : MonoBehaviour
     }
 
     //Essas duas funções tem que ser usadas para adequadamente colocar e retirar itens.
-    public void AddItemToInventory(Item item)
+    public static void AddItemToInventory(Item item)
     {
         if (item.IsStackable)
         {
@@ -62,14 +69,18 @@ public class InventoryController : MonoBehaviour
         }
 
         LevelController.Instance.AddToCollectedItems();
+        if (item.GetType() == typeof(Supply))
+        {
+            SupplyCounter.Instance.UpdateText();
+        }
 
-        if (inventoryPanel.activeInHierarchy)
+        if (_inventoryPanel.activeInHierarchy)
         {
             UpdateInventoryPanel();
         }
     }
 
-    public void RemoveItemFromInventory(Item item)
+    public static void RemoveItemFromInventory(Item item)
     {
         if (item.IsStackable)
         {
@@ -104,7 +115,7 @@ public class InventoryController : MonoBehaviour
             InventoryItems.Remove(item);
         }
 
-        if (inventoryPanel.activeInHierarchy)
+        if (_inventoryPanel.activeInHierarchy)
         {
             UpdateInventoryPanel();
         }
@@ -128,32 +139,27 @@ public class InventoryController : MonoBehaviour
         }
     }
 
-    private void UpdateInventoryPanel()
+    private static void UpdateInventoryPanel()
     {
-        for (int i = 0; i < inventoryButtons.Length; i++)
+        for (int i = 0; i < _inventoryButtons.Length; i++)
         {
             if (i >= InventoryItems.Count)
             {
-                inventoryButtons[i].UpdateAppearence(null);
+                _inventoryButtons[i].UpdateAppearence(null);
             }
             else
             {
-                inventoryButtons[i].UpdateAppearence(InventoryItems[i]);
+                _inventoryButtons[i].UpdateAppearence(InventoryItems[i]);
             }
         }
 
-        if (PlayerCharacter.GetWeapon())
+        if (PlayerController.PC.GetWeapon())
         {
-            weaponSelectButton.UpdateAppearence(PlayerCharacter.GetWeapon());
+            _weaponSelectButton.UpdateAppearence(PlayerController.PC.GetWeapon());
         }
         else
         {
-            weaponSelectButton.UpdateAppearence(null);
+            _weaponSelectButton.UpdateAppearence(null);
         }
-    }
-
-    public void SetPlayerCharacter(SurvivorController survivor)
-    {
-        PlayerCharacter = survivor;
     }
 }

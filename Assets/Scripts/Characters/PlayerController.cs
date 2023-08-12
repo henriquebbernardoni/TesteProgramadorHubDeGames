@@ -1,32 +1,22 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using Random = UnityEngine.Random;
 
 //Esse script controla tudo relacionado aos movimentos do jogador,
 //incluindo movimentação, ataques, esconderijos e troca de PJ.
 public class PlayerController : MonoBehaviour
 {
-    private GameController gameController;
-    private InventoryController inventoryController;
-    [SerializeField] private SurvivorController playerCharacter;
+    public static SurvivorController PC { get; private set; }
+    public static event Action<SurvivorController> OnPlayerCharacterChanged;
 
     [SerializeField] private TextMeshProUGUI actionDescription;
 
-    private Transform[] endingPoints;
     private int currentEndingPoint = 0;
-
-    public SurvivorController PlayerCharacter { get => playerCharacter; private set => playerCharacter = value; }
-
-    private void Awake()
-    {
-        inventoryController = GetComponent<InventoryController>();
-        gameController = GetComponent<GameController>();
-        endingPoints = GameObject.Find("EndingFloor").
-            transform.Find("Points").transform.Cast<Transform>().ToArray();
-    }
 
     private void Update()
     {
@@ -68,7 +58,7 @@ public class PlayerController : MonoBehaviour
                 actionDescription.text = "Fugir!";
             }
             else if (hit.collider.GetComponent<SurvivorController>() &&
-                     hit.collider != PlayerCharacter.GetComponent<Collider>())
+                hit.collider != PC.GetComponent<Collider>())
             {
                 actionDescription.text = "Trocar de personagem";
             }
@@ -98,16 +88,16 @@ public class PlayerController : MonoBehaviour
             else if (hit.collider.GetComponent<Item>())
             {
                 StopAllCoroutines();
-                playerCharacter.FullStop();
+                PC.FullStop();
                 StartCoroutine(GetItem(hit.collider.GetComponent<Item>()));
             }
             else if (hit.collider.GetComponent<ZombieController>())
             {
-                if (!PlayerCharacter.GetWeapon())
+                if (!PC.GetWeapon())
                 {
                     WarningText.Instance.SetWarningText("Nenhuma arma selecionada!");
                 }
-                else if (PlayerCharacter.IsRecharging)
+                else if (PC.IsRecharging)
                 {
                     WarningText.Instance.SetWarningText("Recarregando!");
                 }
@@ -118,8 +108,8 @@ public class PlayerController : MonoBehaviour
                 else
                 {
                     StopAllCoroutines();
-                    StartCoroutine(PlayerCharacter.GetWeapon().
-                        WeaponBehaviour(PlayerCharacter, hit.collider.GetComponent<ZombieController>()));
+                    StartCoroutine(PC.GetWeapon().
+                        WeaponBehaviour(PC, hit.collider.GetComponent<ZombieController>()));
                 }
             }
             else if (hit.collider.CompareTag("Final"))
@@ -141,20 +131,20 @@ public class PlayerController : MonoBehaviour
     //Inclui uma chacagem se no destino há algum esconderijo por perto.
     private IEnumerator WalkHere(Vector3 destination)
     {
-        List<SurvivorController> allButPlayer = PlayerCharacter.SurvivorGroup.
-            Where(survivor => survivor != PlayerCharacter && survivor.GetHidingSpot()).ToList();
+        List<SurvivorController> allButPlayer = PC.SurvivorGroup.
+            Where(survivor => survivor != PC && survivor.GetHidingSpot()).ToList();
         for (int i = 0; i < allButPlayer.Count; i++)
         {
             allButPlayer[i].GetHidingSpot().ExitHidingSpot();
         }
 
-        PlayerCharacter.StopAllCoroutines();
-        PlayerCharacter.SetSurvivorDestination(destination);
-        yield return new WaitUntil(() => PlayerCharacter.Agent.hasPath);
-        yield return new WaitWhile(() => PlayerCharacter.Agent.hasPath);
+        PC.StopAllCoroutines();
+        PC.SetSurvivorDestination(destination);
+        yield return new WaitUntil(() => PC.Agent.hasPath);
+        yield return new WaitWhile(() => PC.Agent.hasPath);
         yield return new WaitForEndOfFrame();
 
-        HidingSpot hidingSpot = PlayerCharacter.DetectNearbyHidingSpot();
+        HidingSpot hidingSpot = PC.DetectNearbyHidingSpot();
         if (hidingSpot)
         {
             StartCoroutine(HideHere(hidingSpot));
@@ -166,12 +156,12 @@ public class PlayerController : MonoBehaviour
     private IEnumerator HideHere(HidingSpot hidingSpot)
     {
         yield return null;
-        playerCharacter.FullStop();
-        StartCoroutine(hidingSpot.EnterHidingSpot(playerCharacter));
-        if (playerCharacter.SurvivorGroup.Count > 1 && !hidingSpot.IsSurvivorHere())
+        PC.FullStop();
+        StartCoroutine(hidingSpot.EnterHidingSpot(PC));
+        if (PC.SurvivorGroup.Count > 1 && !hidingSpot.IsSurvivorHere())
         {
-            List<SurvivorController> allButPlayer = playerCharacter.SurvivorGroup.
-                Where(survivor => survivor != playerCharacter).ToList();
+            List<SurvivorController> allButPlayer = PC.SurvivorGroup.
+                Where(survivor => survivor != PC).ToList();
             List<HidingSpot> hidingOthers = NearestHidingSpots(hidingSpot, allButPlayer.Count);
             for (int i = 0; i < hidingOthers.Count; i++)
             {
@@ -183,7 +173,7 @@ public class PlayerController : MonoBehaviour
     //Os X esconderijos mais próximos do jogador. Esse dado é usado pra esconder os sobreviventes.
     public List<HidingSpot> NearestHidingSpots(HidingSpot excludedHidingSpot, int quantity)
     {
-        List<HidingSpot> allHidingSpots = gameController.HidingSpots.
+        List<HidingSpot> allHidingSpots = GameController.HidingSpots.
             Where(spot => spot != excludedHidingSpot && !spot.IsSurvivorHere()).ToList();
         List<HidingSpot> returnedSpots = new();
         //allHidingSpots.Remove(excludedHidingSpot);
@@ -218,49 +208,50 @@ public class PlayerController : MonoBehaviour
     //Essa rotina é utilizada para pegar algum item.
     private IEnumerator GetItem(Item item)
     {
-        playerCharacter.SetSurvivorDestination(item.transform.position);
-        yield return new WaitUntil(() => playerCharacter.Agent.hasPath);
-        yield return new WaitWhile(() => playerCharacter.Agent.remainingDistance >= 1f);
-        playerCharacter.FullStop();
+        PC.SetSurvivorDestination(item.transform.position);
+        yield return new WaitUntil(() => PC.Agent.hasPath);
+        yield return new WaitWhile(() => PC.Agent.remainingDistance >= 1f);
+        PC.FullStop();
         yield return new WaitForEndOfFrame();
 
-        inventoryController.AddItemToInventory(item);
+        InventoryController.AddItemToInventory(item);
         item.GetComponent<MeshRenderer>().enabled = false;
         item.GetComponent<Collider>().enabled = false;
     }
 
+    //Essa rotina leva o jogador e todos que estão seguindo ele para a saída.
     private IEnumerator HeadToExit()
     {
-        StartCoroutine(WalkHere(endingPoints[currentEndingPoint].position));
-        yield return new WaitUntil(() => PlayerCharacter.Agent.hasPath);
-        yield return new WaitWhile(() => PlayerCharacter.Agent.hasPath);
+        StartCoroutine(WalkHere(GameController.EndingPoints[currentEndingPoint].position));
+        yield return new WaitUntil(() => PC.Agent.hasPath);
+        yield return new WaitWhile(() => PC.Agent.hasPath);
         yield return new WaitForEndOfFrame();
 
         currentEndingPoint++;
-        if (currentEndingPoint >= endingPoints.Length)
+        if (currentEndingPoint >= GameController.EndingPoints.Length)
         {
             currentEndingPoint = 0;
         }
-        PlayerCharacter.SetState(SurvivorController.SurvivorState.FINAL);
+        PC.SetState(SurvivorController.SurvivorState.FINAL);
 
         SurvivorController survivor;
-        if (PlayerCharacter.SurvivorGroup.Count > 1)
+        if (PC.SurvivorGroup.Count > 1)
         {
-            List<SurvivorController> allButPlayer = playerCharacter.SurvivorGroup.
-                Where(survivor => survivor != playerCharacter).ToList();
+            List<SurvivorController> allButPlayer = PC.SurvivorGroup.
+                Where(survivor => survivor != PC).ToList();
             survivor = allButPlayer[Random.Range(0, allButPlayer.Count)];
-            PlayerCharacter.RemoveFromSurvivorGroup(PlayerCharacter, true);
-            PlayerCharacter.SurvivorGroup.Clear();
+            PC.RemoveFromSurvivorGroup(PC, true);
+            PC.SurvivorGroup.Clear();
             SetPlayerCharacter(survivor);
             StartCoroutine(HeadToExit());
         }
-        else if (gameController.Survivors.Any(x => x.GetState() == SurvivorController.SurvivorState.INITIAL))
+        else if (GameController.Survivors.Any(x => x.GetState() == SurvivorController.SurvivorState.INITIAL))
         {
-            survivor = gameController.Survivors.
+            survivor = GameController.Survivors.
                 Where(x => x.GetState() == SurvivorController.SurvivorState.INITIAL)
                 .FirstOrDefault();
-            PlayerCharacter.RemoveFromSurvivorGroup(PlayerCharacter, true);
-            PlayerCharacter.SurvivorGroup.Clear();
+            PC.RemoveFromSurvivorGroup(PC, true);
+            PC.SurvivorGroup.Clear();
             SetPlayerCharacter(survivor);
         }
         else
@@ -276,9 +267,9 @@ public class PlayerController : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
             if (hit.collider.GetComponent<SurvivorController>() &&
-                hit.collider != playerCharacter.GetComponent<Collider>())
+                hit.collider != PC.GetComponent<Collider>())
             {
-                if (!playerCharacter.SurvivorGroup.Contains(hit.collider.GetComponent<SurvivorController>()))
+                if (!PC.SurvivorGroup.Contains(hit.collider.GetComponent<SurvivorController>()))
                 {
                     WarningText.Instance.SetWarningText("Esse sobrevivente não faz parte do seu grupo!" +
                         "\nChegue perto de para acrescentá-lo ao seu grupo.");
@@ -292,19 +283,10 @@ public class PlayerController : MonoBehaviour
     }
 
     //Esse é o método principal para trocar o jogador personagem.
-    public void SetPlayerCharacter(SurvivorController newPlayer)
+    public static void SetPlayerCharacter(SurvivorController newPlayer)
     {
-        foreach (SurvivorController survivor in gameController.Survivors)
-        {
-            survivor.SetPlayerCharacter(newPlayer);
-        }
+        PC = newPlayer;
 
-        foreach (ZombieController zombie in gameController.Zombies)
-        {
-            zombie.SetPlayerCharacter(newPlayer);
-        }
-
-        PlayerCharacter = newPlayer;
-        GetComponent<InventoryController>().SetPlayerCharacter(PlayerCharacter);
+        OnPlayerCharacterChanged?.Invoke(newPlayer);
     }
 }

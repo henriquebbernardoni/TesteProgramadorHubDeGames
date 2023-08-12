@@ -176,17 +176,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1be72233b3ace924e8832c9106fc2173, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  healthText: {fileID: 8255924815142732054}
   maxHealth: 3
   rechargeTime: 3
+  _agent: {fileID: 2854279258392757349}
   currentState: 2
+  bodyRenderer: {fileID: 5372676180490197460}
   survivorMaterial: {fileID: 2100000, guid: 5555ee2761da9c1458841338f93ea7b6, type: 2}
   playerMaterial: {fileID: 2100000, guid: a65f4ea6cd077284690287323ca6738e, type: 2}
   hiddenRenderer: {fileID: 5228648040364773657}
   hiddenMaterial: {fileID: 2100000, guid: 3886b25cb8529434896ee3698d51e575, type: 2}
   nonHiddenMaterial: {fileID: 2100000, guid: eafa63c343da5f345aeeb2b643e636f1, type: 2}
-  currentHidingSpot: {fileID: 0}
-  playerCharacter: {fileID: 0}
-  survivorGroup: []
 --- !u!1 &4310525955134587417
 GameObject:
   m_ObjectHideFlags: 0
@@ -198,6 +198,7 @@ GameObject:
   - component: {fileID: 679382172570996442}
   - component: {fileID: 2427735857152836445}
   - component: {fileID: 8255924815142732054}
+  - component: {fileID: 157317615864186098}
   m_Layer: 0
   m_Name: Text (TMP)
   m_TagString: Untagged
@@ -361,6 +362,18 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 2427735857152836445}
   m_maskType: 0
+--- !u!114 &157317615864186098
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4310525955134587417}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 228c19617dc76404ea18471faaa45add, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &5370145506711401285
 GameObject:
   m_ObjectHideFlags: 0

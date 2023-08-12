@@ -58,9 +58,9 @@ public class Gun : Weapon
             {
                 WarningText.Instance.AddToWarningText("O tiro errou!");
             }
-            if (FindObjectOfType<GameController>().Zombies.Count > 1)
+            if (GameController.Zombies.Count > 1)
             {
-                List<ZombieController> zombieControllers = FindObjectOfType<GameController>().Zombies.
+                List<ZombieController> zombieControllers = GameController.Zombies.
                     Where(x => x.GetState() != ZombieController.ZombieState.DEATH).ToList();
                 if (Random.value < 0.9f)
                 {
